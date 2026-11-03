@@ -1,24 +1,38 @@
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
+import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
     plugins: [
+        react(),
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
-            fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
-                }),
-            ],
         }),
         tailwindcss(),
     ],
+    resolve: {
+        alias: {
+            '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
+        },
+    },
     server: {
+        cors: {
+            origin: '*',
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+        },
         watch: {
             ignored: ['**/storage/framework/views/**'],
+        },
+        allowedHosts: ['.trycloudflare.com'],
+        // Explicitly tells Vite how the browser should contact it
+        hmr: {
+            host: 'telecharger-making-associates-crown.trycloudflare.com',
+            protocol: 'wss',
+            clientPort: 443
         },
     },
 });

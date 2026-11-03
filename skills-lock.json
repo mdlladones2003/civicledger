@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "anti-slop": {
+      "source": "elithrar/dotfiles",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/anti-slop/SKILL.md",
+      "computedHash": "426f84f4cb0245ac72970ab7856518fbbd06f3b45ba1f9eef82ceef27d305d0c"
+    },
+    "design-taste-frontend": {
+      "source": "Leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/taste-skill/SKILL.md",
+      "computedHash": "53590ee9325bee34d7888bf0d81bd3941a108b1e7850df46802d93104e3f2b90"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "74e0ede3a72c476a4c293e1e34d75fa1713f83bdc5c6c1cd76f1002fc564ecc6"
+    },
+    "humanizer": {
+      "source": "blader/humanizer",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "2f76cbf57b9db9bf286e2bdf19a965d6bdb414317bc4eb77ab059375308cee92"
+    },
+    "landing-page": {
+      "source": "MengTo/Skills",
+      "sourceType": "github",
+      "skillPath": "agent-skills/web-design/landing-page/SKILL.md",
+      "computedHash": "bb0c2721d98ff0f5839522710d50e57b6470dbe398d4bbc56c6a33be9302c15b"
+    }
+  }
+}

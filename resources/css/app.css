@@ -1,9 +1,264 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource/questrial';
+
+@custom-variant dark (&:is(.dark *, .theme-dark *));
+
+@custom-variant data-open {
+    &:where([data-state='open']),
+    &:where([data-open]:not([data-open='false'])) {
+        @slot;
+    }
+}
+
+@custom-variant data-closed {
+    &:where([data-state='closed']),
+    &:where([data-closed]:not([data-closed='false'])) {
+        @slot;
+    }
+}
+
+@custom-variant data-disabled {
+    &:where([data-disabled='true']),
+    &:where([data-disabled]:not([data-disabled='false'])) {
+        @slot;
+    }
+}
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-display: var(--font-heading);
+    --font-sans: 'Questrial', ui-sans-serif, system-ui, sans-serif;
+    --font-weight-medium: 400;
+    --font-weight-semibold: 400;
+    --font-weight-bold: 400;
+    --font-weight-extrabold: 400;
+    --text-cl-small: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
+    --text-cl-body: clamp(1rem, 0.98rem + 0.15vw, 1.125rem);
+    --text-cl-lead: clamp(1.125rem, 1.06rem + 0.4vw, 1.375rem);
+    --text-cl-head: clamp(1.75rem, 1.35rem + 2.2vw, 2.75rem);
+    --text-cl-display: clamp(2.75rem, 1.75rem + 4.5vw, 5rem);
+    --text-cl-lead--line-height: 1.45;
+    --text-cl-head--line-height: 1.08;
+    --text-cl-display--line-height: 0.98;
+    --text-cl-display--letter-spacing: -0.035em;
+    --spacing-cl-page: clamp(1rem, 2.2vw, 2rem);
+    --spacing-cl-gutter: clamp(1rem, 2vw, 2rem);
+    --spacing-cl-section: clamp(4rem, 7vw, 6rem);
+    --ease-cl-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-cl-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --duration-cl-reveal: 700ms;
+    --color-navy: var(--foreground);
+    --color-civic: var(--link);
+    --color-civic-light: var(--accent);
+    --color-link: var(--link);
+    --color-status-success: var(--status-success);
+    --color-status-success-foreground: var(--status-success-foreground);
+    --color-status-success-border: var(--status-success-border);
+    --color-status-pending: var(--status-pending);
+    --color-status-pending-foreground: var(--status-pending-foreground);
+    --color-status-pending-border: var(--status-pending-border);
+    --color-status-danger: var(--status-danger);
+    --color-status-danger-foreground: var(--status-danger-foreground);
+    --color-status-danger-border: var(--status-danger-border);
+    --color-status-neutral: var(--status-neutral);
+    --color-status-neutral-foreground: var(--status-neutral-foreground);
+    --color-status-neutral-border: var(--status-neutral-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-muted: var(--sidebar-muted);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-xs: calc(var(--radius) * 0.4);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root,
+.theme-light {
+    color-scheme: light;
+    --background: #F8FAFC;
+    --foreground: #123047;
+    --card: #FFFFFF;
+    --card-foreground: #123047;
+    --popover: #FFFFFF;
+    --popover-foreground: #123047;
+    --primary: #123047;
+    --primary-foreground: #FFFFFF;
+    --secondary: #E8EDF3;
+    --secondary-foreground: #334155;
+    --muted: #E8EDF3;
+    --muted-foreground: #475569;
+    --accent: #E3F1EF;
+    --accent-foreground: #0B4F4A;
+    --link: #0F766E;
+    --destructive: #991B1B;
+    --destructive-foreground: #FFFFFF;
+    --border: #DBE2EA;
+    --input: #DBE2EA;
+    --ring: #0F766E;
+    --chart-1: #123047;
+    --chart-2: #334155;
+    --chart-3: #475569;
+    --chart-4: #64748B;
+    --chart-5: #94A3B8;
+    --radius: 10px;
+    --sidebar: #123047;
+    --sidebar-foreground: #FFFFFF;
+    --sidebar-primary: #1F4055;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-muted: #CBD5E1;
+    --sidebar-accent: #1F4055;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: #29485D;
+    --sidebar-ring: #5FD0C4;
+    --status-success: #E3F1EF;
+    --status-success-foreground: #0B4F4A;
+    --status-success-border: #0F766E;
+    --status-pending: #FEF3C7;
+    --status-pending-foreground: #8A4A05;
+    --status-pending-border: #D97706;
+    --status-danger: #FEE2E2;
+    --status-danger-foreground: #991B1B;
+    --status-danger-border: #B91C1C;
+    --status-neutral: #E8EDF3;
+    --status-neutral-foreground: #334155;
+    --status-neutral-border: #CBD5E1;
+}
+
+.dark,
+.theme-dark {
+    color-scheme: dark;
+    --background: #0A1722;
+    --foreground: #E8EEF4;
+    --card: #0F2130;
+    --card-foreground: #E8EEF4;
+    --popover: #0F2130;
+    --popover-foreground: #E8EEF4;
+    --primary: #5FD0C4;
+    --primary-foreground: #06222B;
+    --secondary: #1A2B39;
+    --secondary-foreground: #E8EEF4;
+    --muted: #172B3B;
+    --muted-foreground: #B7C7D3;
+    --accent: #153C43;
+    --accent-foreground: #BDF4EB;
+    --link: #5FD0C4;
+    --destructive: #FCA5A5;
+    --destructive-foreground: #3B1115;
+    --border: #213A4B;
+    --input: #30495A;
+    --ring: #5FD0C4;
+    --chart-1: #E8EEF4;
+    --chart-2: #C5D0DA;
+    --chart-3: #A8C3D4;
+    --chart-4: #94A3B8;
+    --chart-5: #597083;
+    --sidebar: #0F2130;
+    --sidebar-foreground: #E8EEF4;
+    --sidebar-primary: #1A3445;
+    --sidebar-primary-foreground: #E8EEF4;
+    --sidebar-muted: #B7C7D3;
+    --sidebar-accent: #1A3445;
+    --sidebar-accent-foreground: #E8EEF4;
+    --sidebar-border: #213A4B;
+    --sidebar-ring: #5FD0C4;
+    --status-success: #14312F;
+    --status-success-foreground: #BFE9E2;
+    --status-success-border: #4B9D93;
+    --status-pending: #3B2E1B;
+    --status-pending-foreground: #FFE1A6;
+    --status-pending-border: #D99A36;
+    --status-danger: #3A2024;
+    --status-danger-foreground: #FFC2C2;
+    --status-danger-border: #E27A7A;
+    --status-neutral: #1A2B39;
+    --status-neutral-foreground: #C5D0DA;
+    --status-neutral-border: #597083;
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    html {
+        @apply font-sans;
+        color-scheme: light;
+    }
+
+    html.dark {
+        color-scheme: dark;
+    }
+
+    body {
+        @apply min-h-screen min-w-80 bg-background text-foreground antialiased;
+        font-synthesis: none;
+        font-weight: 400;
+    }
+
+    b,
+    strong {
+        font-weight: 400;
+    }
+
+    :target {
+        scroll-margin-top: 6rem;
+    }
+}
+
+@utility cl-rise {
+    animation: cl-rise var(--duration-cl-reveal) var(--ease-cl-out) both;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+@keyframes cl-rise {
+    from {
+        opacity: 0;
+        transform: translateY(0.75rem);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
