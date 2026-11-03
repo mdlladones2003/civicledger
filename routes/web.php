@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\Coordinator\StudentSectionAssignmentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\EventSessionController;
@@ -90,6 +91,15 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsurePasswordChanged::class
     Route::get('/events', [EventController::class, 'index'])->name('events.index');
 
     Route::middleware(RequirePermission::class.':events.manage')->group(function () {
+        Route::get('/coordinator/section-assignments', [StudentSectionAssignmentController::class, 'index'])
+            ->name('coordinator.section-assignments.index');
+        Route::get('/coordinator/students/search', [StudentSectionAssignmentController::class, 'searchStudents'])
+            ->name('coordinator.students.search');
+        Route::post('/coordinator/sections', [StudentSectionAssignmentController::class, 'storeSection'])
+            ->name('coordinator.sections.store');
+        Route::post('/coordinator/section-assignments', [StudentSectionAssignmentController::class, 'store'])
+            ->name('coordinator.section-assignments.store');
+
         // Declared before /events/{event} so "create" is not treated as an id.
         Route::get('/events/create', [EventController::class, 'create'])->name('events.create');
         Route::post('/events', [EventController::class, 'store'])->name('events.store');

@@ -40,7 +40,7 @@ export default function EventShow({ props }: { props: Data }) {
                     </div>
                 ) : undefined}
             />
-            <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+            <div className="grid gap-6">
                 <Panel title="About this event">
                     <dl className="grid gap-4 sm:grid-cols-2">
                         <div><dt className="text-sm text-muted-foreground">Date and time</dt><dd className="mt-1">{date(event.starts_at, { dateStyle: 'full', timeStyle: 'short' })}</dd></div>

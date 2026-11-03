@@ -10,6 +10,7 @@ import {
     ClipboardCheck,
     Clock3,
     Fingerprint,
+    GraduationCap,
     LayoutDashboard,
     LogOut,
     QrCode,
@@ -32,6 +33,7 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
     const links = [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, visible: true },
         { label: 'Events', href: '/events', icon: CalendarDays, visible: true },
+        { label: 'Student assignments', href: '/coordinator/section-assignments', icon: GraduationCap, visible: Boolean(permissions['events.manage']) },
         { label: 'Scan attendance', href: '/attendance/scan', icon: QrCode, visible: !permissions['users.manage'] && !permissions['hours.review'] && !permissions['certificates.issue'] },
         { label: 'My hours', href: '/my/hours', icon: Clock3, visible: !permissions['users.manage'] && !permissions['hours.review'] && !permissions['certificates.issue'] },
         { label: 'Review hours', href: '/hours/review', icon: ClipboardCheck, visible: Boolean(permissions['hours.review']) },
