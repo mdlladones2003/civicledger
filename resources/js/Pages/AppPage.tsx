@@ -3,6 +3,7 @@ import type { Data } from '@/types/app';
 import Home from '@/Pages/Public/Home';
 import Login from '@/Pages/Auth/Login';
 import Register from '@/Pages/Auth/Register';
+import ChangePassword from '@/Pages/Auth/ChangePassword';
 import AccountProfile from '@/Pages/Account/Profile';
 import Dashboard from '@/Pages/Dashboard';
 import EventsIndex from '@/Pages/Events/Index';
@@ -34,6 +35,8 @@ export default function AppPage() {
             return <Login />;
         case 'Auth/Register':
             return <Register />;
+        case 'Auth/ChangePassword':
+            return <ChangePassword />;
         case 'Account/Profile':
             return <AccountProfile props={props} />;
         case 'Public/Verify':

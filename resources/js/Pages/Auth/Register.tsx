@@ -5,7 +5,10 @@ import { AuthLayout, AuthField } from '@/components/auth/AuthLayout';
 
 export default function Register() {
     return (
-        <AuthLayout title="Create an account">
+        <AuthLayout title="Student registration">
+            <p className="text-sm leading-6 text-muted-foreground">
+                This page creates student accounts only. Coordinator and signer accounts are created by an administrator.
+            </p>
             <form action="/register" method="post" className="grid gap-4">
                 <input type="hidden" name="_token" value={csrfToken()} />
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -16,7 +19,7 @@ export default function Register() {
                     <AuthField label="Password" name="password" type="password" autoComplete="new-password" minLength={12} />
                     <AuthField label="Confirm password" name="password_confirmation" type="password" autoComplete="new-password" minLength={12} />
                 </div>
-                <Button type="submit" size="lg" className="w-full">Create account</Button>
+                <Button type="submit" size="lg" className="w-full">Create student account</Button>
             </form>
             <p className="text-sm text-muted-foreground">
                 Already registered? <Link href="/login" className="text-link underline underline-offset-4">Sign in</Link>

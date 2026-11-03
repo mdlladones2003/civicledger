@@ -14,7 +14,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 class AttendanceController extends Controller
 {
@@ -26,18 +28,64 @@ class AttendanceController extends Controller
         return Inertia::render('Attendance/Scan');
     }
 
-    public function store(ScanAttendanceRequest $request)
+    public function store(ScanAttendanceRequest $request): Response
     {
         try {
             $result = $this->attendance->scan($request->user(), $request->validated('token'));
         } catch (ScanRejectedException $e) {
+            if ($request->expectsJson()) {
+                if ($e->reason === 'duplicate') {
+                    return response()->json([
+                        'result' => $e->result,
+                        'at' => now()->utc()->toISOString(),
+                        'event' => ['title' => $e->eventTitle],
+                    ]);
+                }
+
+                return $this->scanErrorResponse($e);
+            }
+
             return back()->withErrors(['token' => $e->getMessage()])->with('scan_reason', $e->reason);
+        }
+
+        if ($request->expectsJson()) {
+            $attendance = $result['attendance']->loadMissing('session.event');
+            $at = in_array($result['action'], ['checked_out', 'already_checked_out'], true)
+                ? $attendance->check_out_at ?? $attendance->check_in_at
+                : $attendance->check_in_at;
+
+            return response()->json([
+                'result' => $result['action'] === 'check_in' ? 'checked_in' : ($result['action'] === 'check_out' ? 'checked_out' : $result['action']),
+                'at' => $at->utc()->toISOString(),
+                'event' => ['title' => $attendance->session->event->title],
+            ]);
         }
 
         return back()->with('scan', [
             'action' => $result['action'],
             'at' => now()->toIso8601String(),
         ]);
+    }
+
+    private function scanErrorResponse(ScanRejectedException $exception): JsonResponse
+    {
+        [$code, $status, $retryable] = match ($exception->reason) {
+            'expired' => ['qr_expired', 410, true],
+            'invalid' => ['qr_invalid', 400, false],
+            'not_registered' => ['not_registered', 403, false],
+            'session_closed' => ['session_closed', 409, true],
+            'too_soon' => ['invalid_state', 409, true],
+            default => ['invalid_state', 409, false],
+        };
+
+        return response()->json([
+            'error' => [
+                'code' => $code,
+                'message' => $exception->getMessage(),
+                'retryable' => $retryable,
+                'request_id' => (string) Str::ulid(),
+            ],
+        ], $status);
     }
 
     public function challenge(ScanAttendanceRequest $request, QrChallengeService $qr): JsonResponse

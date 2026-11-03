@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserRoleController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DashboardController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SessionQrController;
 use App\Http\Middleware\EnsureActiveUser;
+use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\RequirePermission;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -48,11 +50,20 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
+Route::middleware(['auth', EnsureActiveUser::class])->group(function () {
+    Route::get('/password/change', [PasswordChangeController::class, 'edit'])->name('password.change');
+    Route::put('/password/change', [PasswordChangeController::class, 'update'])->name('password.update');
+});
+
 Route::get('/verify/{token}', [PublicVerificationController::class, 'show'])
     ->middleware('throttle:30,1')
     ->name('verify.show');
 
-Route::middleware(['auth', EnsureActiveUser::class])->group(function () {
+Route::get('/api/verify/{token}', [PublicVerificationController::class, 'api'])
+    ->middleware('throttle:30,1')
+    ->name('api.verify');
+
+Route::middleware(['auth', EnsureActiveUser::class, EnsurePasswordChanged::class])->group(function () {
     Route::get('/me', [AccountController::class, 'me'])->name('me');
     Route::get('/profile', [AccountController::class, 'show'])->name('profile.show');
     Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
@@ -65,9 +76,10 @@ Route::middleware(['auth', EnsureActiveUser::class])->group(function () {
         ->middleware('throttle:30,1')
         ->name('attendance.scan.challenge');
     Route::post('/attendance/scan', [AttendanceController::class, 'store'])
-        ->middleware('throttle:30,1')
+        ->middleware('throttle:10,1')
         ->name('attendance.scan.store');
     Route::get('/my/hours', [MyHoursController::class, 'index'])->name('my.hours');
+    Route::get('/me/hours', [MyHoursController::class, 'index'])->name('me.hours');
     Route::post('/events/{event}/register', [RegistrationController::class, 'store'])->name('events.register');
     Route::delete('/events/{event}/register', [RegistrationController::class, 'destroy'])->name('events.unregister');
 
@@ -94,9 +106,10 @@ Route::middleware(['auth', EnsureActiveUser::class])->group(function () {
         // Live QR + roster (S10)
         Route::get('/sessions/{session}/qr', [SessionQrController::class, 'show'])->name('sessions.qr');
         Route::get('/sessions/{session}/qr/challenge', [SessionQrController::class, 'challenge'])
-            ->middleware('throttle:60,1')
+            ->middleware('throttle:12,1')
             ->name('sessions.qr.challenge');
         Route::get('/sessions/{session}/roster', [SessionQrController::class, 'rosterJson'])->name('sessions.roster');
+        Route::get('/sessions/{session}/live', [SessionQrController::class, 'rosterJson'])->name('sessions.live');
     });
 
     Route::get('/events/{event}', [EventController::class, 'show'])->name('events.show');
@@ -137,6 +150,7 @@ Route::middleware(['auth', EnsureActiveUser::class])->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware(RequirePermission::class.':users.manage')->group(function () {
             Route::get('/users', [UserController::class, 'index'])->name('users.index');
+            Route::post('/users', [UserController::class, 'store'])->name('users.store');
             Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
             Route::put('/users/{user}/roles', [UserRoleController::class, 'update'])->name('users.roles');
             Route::post('/users/{user}/assignments', [SectionAssignmentController::class, 'store'])->name('users.assignments.store');

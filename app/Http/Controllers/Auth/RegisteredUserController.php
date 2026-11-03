@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,13 +30,20 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Password::min(12)],
         ]);
 
-        $user = User::create([
-            'first_name' => $validated['first_name'],
-            'middle_name' => $validated['middle_name'] ?? null,
-            'last_name' => $validated['last_name'],
-            'email' => $validated['email'],
-            'password' => $validated['password'],
-        ]);
+        $user = DB::transaction(function () use ($validated): User {
+            $user = User::create([
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? null,
+                'last_name' => $validated['last_name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+            ]);
+
+            $studentRole = Role::firstOrCreate(['code' => 'student'], ['label' => 'Student']);
+            $user->roles()->attach($studentRole);
+
+            return $user;
+        });
 
         Auth::guard('web')->login($user);
         $request->session()->regenerate();

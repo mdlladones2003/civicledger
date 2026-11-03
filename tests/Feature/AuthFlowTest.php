@@ -58,7 +58,7 @@ it('does not authenticate suspended users', function () {
     $this->assertGuest();
 });
 
-it('registers a basic account without roles', function () {
+it('registers a student account and ignores submitted role and status fields', function () {
     $this->post('/register', [
         'first_name' => 'Jordan',
         'middle_name' => '',
@@ -68,6 +68,7 @@ it('registers a basic account without roles', function () {
         'password_confirmation' => 'strong-password-123',
         'status' => 'suspended',
         'roles' => ['admin'],
+        'role' => 'coordinator',
     ])->assertRedirect(route('dashboard'));
 
     $user = User::query()->where('email', 'jordan@example.test')->firstOrFail();
@@ -78,7 +79,8 @@ it('registers a basic account without roles', function () {
         'status' => 'active',
         'middle_name' => null,
     ]);
-    expect($user->roles()->count())->toBe(0);
+    expect($user->roles()->pluck('code')->all())->toBe(['student']);
+    $this->assertDatabaseHas('roles', ['code' => 'student', 'label' => 'Student']);
 });
 
 it('rejects registration when the email is already used', function () {

@@ -59,14 +59,17 @@ class AttendanceService
                         'status' => Attendance::STATUS_CHECKED_IN,
                     ]);
                 } catch (UniqueConstraintViolationException) {
-                    throw ScanRejectedException::duplicate();
+                    throw ScanRejectedException::duplicate($session->event->title);
                 }
 
                 return ['action' => 'check_in', 'attendance' => $attendance];
             }
 
             if ($attendance->status !== Attendance::STATUS_CHECKED_IN || $attendance->check_out_at !== null) {
-                throw ScanRejectedException::duplicate();
+                return [
+                    'action' => $attendance->check_out_at !== null ? 'already_checked_out' : 'already_checked_in',
+                    'attendance' => $attendance,
+                ];
             }
 
             if ($attendance->check_in_at->diffInSeconds(now(), true) < (int) config('civicledger.qr.min_checkout_seconds')) {

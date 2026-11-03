@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\VerificationState;
 use App\Models\Certificate;
 use App\Services\CertificateService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -18,17 +19,19 @@ class PublicVerificationController extends Controller
 {
     public function show(Request $request, string $token, CertificateService $certificates): Response
     {
-        $certificate = Str::length($token) <= 64
-            ? Certificate::with(['student:id,first_name,middle_name,last_name', 'term:id,code', 'proof'])->where('public_token', $token)->first()
-            : null;
+        $certificate = $this->findCertificate($token);
 
         if (! $certificate) {
-            return Inertia::render('Public/Verify', [
+            $response = Inertia::render('Public/Verify', [
                 'state' => VerificationState::NotFound->value,
                 'certificate' => null,
                 'evidence' => null,
                 'disclaimer' => $this->disclaimer(),
-            ])->toResponse($request)->setStatusCode(404);
+            ])->toResponse($request);
+
+            $response->headers->set('Cache-Control', 'no-store');
+
+            return $response;
         }
 
         $state = $certificates->verificationState($certificate);
@@ -59,6 +62,58 @@ class PublicVerificationController extends Controller
         $response->headers->set('Cache-Control', 'no-store');
 
         return $response;
+    }
+
+    public function api(string $token, CertificateService $certificates): JsonResponse
+    {
+        $certificate = $this->findCertificate($token);
+
+        if (! $certificate) {
+            return response()->json([
+                'result' => VerificationState::NotFound->value,
+                'validity' => null,
+                'certificate' => null,
+                'proof' => null,
+                'disclaimer' => $this->disclaimer(),
+            ])->header('Cache-Control', 'no-store');
+        }
+
+        $proof = $certificate->proof;
+
+        return response()->json([
+            'result' => $certificates->verificationState($certificate)->value,
+            'validity' => match ($certificate->status) {
+                Certificate::ISSUED => 'current',
+                Certificate::REVOKED => 'revoked',
+                Certificate::SUPERSEDED => 'superseded',
+                default => 'unknown',
+            },
+            'certificate' => [
+                'number' => $certificate->certificate_number,
+                'term' => $certificate->term->code,
+                'approved_hours' => round($certificate->approved_minutes / 60, 2),
+                'issued_at' => $certificate->issued_at->toDateString(),
+                'holder' => $this->mask($certificate->student->full_name),
+            ],
+            'proof' => $proof ? [
+                'status' => $proof->proof_status,
+                'network' => config('civicledger.proof.network_name'),
+                'tx_hash' => $proof->tx_hash,
+                'checked_at' => $proof->confirmed_at?->utc()->toIso8601String(),
+            ] : null,
+            'disclaimer' => $this->disclaimer(),
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    private function findCertificate(string $token): ?Certificate
+    {
+        if (Str::length($token) > 64) {
+            return null;
+        }
+
+        return Certificate::with(['student:id,first_name,middle_name,last_name', 'term:id,code', 'proof'])
+            ->where('public_token', $token)
+            ->first();
     }
 
     private function mask(string $name): string

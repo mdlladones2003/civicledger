@@ -73,6 +73,59 @@ it('does not offer or allow account deletion for coordinators and signers', func
     }
 });
 
+it('allows the assigned coordinator to publish a draft event', function () {
+    $coordinator = User::where('email', 'coordinator@civicledger.test')->firstOrFail();
+    $existingEvent = Event::where('coordinator_id', $coordinator->id)->firstOrFail();
+    $draft = Event::create([
+        'coordinator_id' => $coordinator->id,
+        'program_id' => $existingEvent->program_id,
+        'section_id' => $existingEvent->section_id,
+        'title' => 'Draft ready to publish',
+        'venue' => 'Community hall',
+        'component' => 'CWTS',
+        'starts_at' => now()->addDay(),
+        'ends_at' => now()->addDay()->addHour(),
+        'status' => Event::STATUS_DRAFT,
+    ]);
+
+    $this->actingAs($coordinator)
+        ->from(route('events.show', $draft))
+        ->post(route('events.publish', $draft))
+        ->assertRedirect(route('events.show', $draft))
+        ->assertSessionHas('success', 'Event published.');
+
+    $this->assertDatabaseHas('events', [
+        'id' => $draft->id,
+        'status' => Event::STATUS_PUBLISHED,
+    ]);
+});
+
+it('denies students access to the event publish action', function () {
+    $coordinator = User::where('email', 'coordinator@civicledger.test')->firstOrFail();
+    $event = Event::where('coordinator_id', $coordinator->id)->firstOrFail();
+    $draft = Event::create([
+        'coordinator_id' => $coordinator->id,
+        'program_id' => $event->program_id,
+        'section_id' => $event->section_id,
+        'title' => 'Coordinator-only draft',
+        'venue' => 'Community hall',
+        'component' => 'CWTS',
+        'starts_at' => now()->addDay(),
+        'ends_at' => now()->addDay()->addHour(),
+        'status' => Event::STATUS_DRAFT,
+    ]);
+    $student = User::where('email', 'student1@civicledger.test')->firstOrFail();
+
+    $this->actingAs($student)
+        ->post(route('events.publish', $draft))
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('events', [
+        'id' => $draft->id,
+        'status' => Event::STATUS_DRAFT,
+    ]);
+});
+
 it('shows past events to new and unassigned students without opening drafts or past registration', function () {
     $newStudent = User::where('email', 'student1@civicledger.test')->firstOrFail();
     $oldStudent = User::factory()->create();

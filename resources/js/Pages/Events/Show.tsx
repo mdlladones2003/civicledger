@@ -29,7 +29,16 @@ export default function EventShow({ props }: { props: Data }) {
                 eyebrow="Event details"
                 title={displayEventTitle(event.title)}
                 description={text(event.description, 'Event information and participation details.')}
-                action={props.canManage ? <Button asChild variant="outline"><Link href={`/events/${text(event.id)}/edit`}>Edit event</Link></Button> : undefined}
+                action={props.canManage ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button asChild variant="outline">
+                            <Link href={`/events/${text(event.id)}/edit`}>Edit event</Link>
+                        </Button>
+                        {event.status === 'draft' && (
+                            <ActionForm action={`/events/${text(event.id)}/publish`} button="Publish event" />
+                        )}
+                    </div>
+                ) : undefined}
             />
             <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
                 <Panel title="About this event">

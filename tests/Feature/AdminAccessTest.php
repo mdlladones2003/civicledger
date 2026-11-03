@@ -94,16 +94,12 @@ it('paginates the administrator certificate list across all students', function 
             ->where('certificates.prev_page_url', url('/certificates?page=1')));
 });
 
-it('hides administrator emails, removes user creation, and blocks account deletion', function () {
+it('hides administrator emails and blocks account deletion', function () {
     $this->actingAs($this->admin)
         ->get('/admin/users')
         ->assertOk()
         ->assertDontSee('admin@civicledger.test')
         ->assertInertia(fn (Assert $page) => $page->component('Admin/Users'));
-
-    $this->actingAs($this->admin)
-        ->post('/admin/users')
-        ->assertMethodNotAllowed();
 
     $this->actingAs($this->admin)
         ->get('/profile')

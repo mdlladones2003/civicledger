@@ -7,8 +7,12 @@ use RuntimeException;
 /** Understandable reasons for QR failures (Design Brief §4). */
 class ScanRejectedException extends RuntimeException
 {
-    public function __construct(public readonly string $reason, string $message)
-    {
+    public function __construct(
+        public readonly string $reason,
+        string $message,
+        public readonly ?string $result = null,
+        public readonly ?string $eventTitle = null,
+    ) {
         parent::__construct($message);
     }
 
@@ -32,9 +36,9 @@ class ScanRejectedException extends RuntimeException
         return new self('not_registered', 'You are not registered for this event. Register first, or ask a coordinator.');
     }
 
-    public static function duplicate(): self
+    public static function duplicate(?string $eventTitle = null): self
     {
-        return new self('duplicate', 'Your attendance for this session is already recorded.');
+        return new self('duplicate', 'Your attendance for this session is already recorded.', 'already_checked_in', $eventTitle);
     }
 
     public static function tooSoon(): self

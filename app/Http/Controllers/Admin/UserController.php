@@ -7,8 +7,11 @@ use App\Models\Role;
 use App\Models\Section;
 use App\Models\User;
 use App\Services\AuditLogger;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -41,6 +44,43 @@ class UserController extends Controller
             'roles' => Role::orderBy('code')->get(['id', 'code', 'label']),
             'sections' => Section::with(['program:id,code', 'term:id,code'])->get(),
         ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'role' => ['required', Rule::in(['coordinator', 'signer'])],
+            'password' => ['required', 'confirmed', Password::min(12)],
+        ]);
+
+        DB::transaction(function () use ($validated, $request): void {
+            $role = Role::query()->where('code', $validated['role'])->firstOrFail();
+            $user = User::create([
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? null,
+                'last_name' => $validated['last_name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+            ]);
+
+            $user->forceFill([
+                'status' => 'active',
+                'must_change_password' => true,
+            ])->save();
+            $user->roles()->attach($role);
+
+            $this->audit->log($request->user(), 'user.created', $user, null, [
+                'email' => $user->email,
+                'role' => $role->code,
+                'must_change_password' => true,
+            ]);
+        });
+
+        return redirect()->route('admin.users.index')->with('success', 'Staff account created.');
     }
 
     public function update(Request $request, User $user)

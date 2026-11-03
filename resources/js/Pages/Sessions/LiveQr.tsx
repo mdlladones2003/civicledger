@@ -1,3 +1,4 @@
+import { usePoll } from '@inertiajs/react';
 import {
     Table as ShadcnTable,
     TableBody,
@@ -45,6 +46,8 @@ import { AppShell } from '@/components/app/AppShell';
 import type { Data } from '@/types/app';
 
 export default function LiveRoster({ props }: { props: Data }) {
+    usePoll(10000, { only: ['roster'] }, { mode: 'rest' });
+
     const session = object(props.session);
     const event = object(session.event);
     const roster = rows(props.roster);
