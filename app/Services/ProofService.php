@@ -107,8 +107,9 @@ class ProofService
             return VerificationState::Unavailable; // never "verified" when the chain cannot be checked
         }
 
+        // A locally confirmed proof that the chain cannot produce must never read as a harmless "not found" (TRD §7.5).
         if ($onChain === null) {
-            return VerificationState::NotFound;
+            return VerificationState::Mismatch;
         }
 
         $payload = $this->livePayload($proof);
@@ -138,7 +139,7 @@ class ProofService
         ]);
     }
 
-    /** Keyed construction (TRD §6): HMAC-SHA256 with a key derived per record from a secret held outside the DB. */
+    /** Keyed construction (TRD §7.2): HMAC-SHA256 with a key derived per record from a secret held outside the DB. */
     private function commitment(array $payload, string $recordKey): string
     {
         $secret = (string) config('civicledger.proof.secret');

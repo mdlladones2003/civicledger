@@ -1,5 +1,8 @@
 import { Link } from '@inertiajs/react';
 
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
     Table as ShadcnTable,
     TableBody,
@@ -8,6 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 
 import { object, rows, text, hours, person } from '@/lib/app';
 
@@ -16,6 +20,41 @@ import { Status, Panel, PageHeading, ActionForm, Table, Cell, Empty } from '@/co
 import { AppShell } from '@/components/app/AppShell';
 
 import type { Data } from '@/types/app';
+
+function CertificateActionDialog({ certificate, action }: { certificate: Data; action: 'revoke' | 'supersede' }) {
+    const number = text(certificate.certificate_number);
+    const revoking = action === 'revoke';
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button type="button" variant={revoking ? 'destructive' : 'outline'} className="min-h-11">
+                    {revoking ? 'Revoke' : 'Supersede'}
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{revoking ? `Revoke certificate ${number}?` : `Supersede certificate ${number}?`}</DialogTitle>
+                    <DialogDescription>
+                        {revoking
+                            ? 'It will no longer verify as valid. This action is recorded and can’t be undone.'
+                            : 'A replacement is issued from the student’s current approved hours, and this certificate will show as superseded. This action is recorded and can’t be undone.'}
+                    </DialogDescription>
+                </DialogHeader>
+                <ActionForm
+                    action={`/certificates/${text(certificate.id)}/${action}`}
+                    button={revoking ? 'Revoke certificate' : 'Issue replacement'}
+                    variant={revoking ? 'destructive' : 'default'}
+                >
+                    <Label className="grid gap-1.5 text-sm font-medium text-foreground">
+                        <span>Reason</span>
+                        <Textarea name="reason" minLength={10} maxLength={500} rows={3} required />
+                    </Label>
+                </ActionForm>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function Certificates({ props, signer, admin = false }: { props: Data; signer: boolean; admin?: boolean }) {
     const certificatePage = object(signer ? props.issued : props.certificates);
@@ -66,6 +105,12 @@ export default function Certificates({ props, signer, admin = false }: { props: 
                                 )}
                                 {Boolean(certificate.proof) && (
                                     <p className="text-sm text-muted-foreground">Proof: <Status value={object(certificate.proof).proof_status} /> · Validity: <Status value={object(certificate.proof).validity_status} /></p>
+                                )}
+                                {signer && Boolean(props.canRevoke) && certificate.status === 'issued' && (
+                                    <div className="flex flex-wrap gap-2">
+                                        <CertificateActionDialog certificate={certificate} action="supersede" />
+                                        <CertificateActionDialog certificate={certificate} action="revoke" />
+                                    </div>
                                 )}
                             </article>
                         ))}

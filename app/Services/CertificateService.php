@@ -12,6 +12,7 @@ use App\Models\ServiceRecord;
 use App\Models\Term;
 use App\Models\User;
 use App\Models\UserSectionAssignment;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -24,14 +25,29 @@ class CertificateService
     /** Approved minutes only; pending/rejected never count (F6.3). Events without a section have no term and are excluded. */
     public function eligibleMinutes(User $student, Term $term): int
     {
-        return (int) ServiceRecord::query()
-            ->where('student_id', $student->id)
-            ->where('status', ServiceRecord::APPROVED)
-            ->whereHas('attendance.session.event.section', fn ($q) => $q->where('term_id', $term->id))
-            ->sum('approved_minutes');
+        return (int) $this->approvedRecords($student, $term)->sum('approved_minutes');
     }
 
-    /** Students inside the signer's scope who currently qualify and have no active certificate. */
+    /** F5.1: approved records whose current version is not yet confirmed on chain. Any of these blocks issuance. */
+    public function unconfirmedRecordCount(User $student, Term $term): int
+    {
+        return $this->approvedRecords($student, $term)
+            ->whereDoesntHave('versions', fn (Builder $versions) => $versions
+                ->whereColumn('service_record_versions.version', 'service_records.current_version')
+                ->whereHas('proof', fn (Builder $proof) => $proof->where('proof_status', BlockchainProof::CONFIRMED)))
+            ->count();
+    }
+
+    /** @return Builder<ServiceRecord> */
+    private function approvedRecords(User $student, Term $term): Builder
+    {
+        return ServiceRecord::query()
+            ->where('student_id', $student->id)
+            ->where('status', ServiceRecord::APPROVED)
+            ->whereHas('attendance.session.event.section', fn ($q) => $q->where('term_id', $term->id));
+    }
+
+    /** Students inside the signer's scope who currently qualify, with confirmed proofs and no active certificate. */
     public function eligibleCandidates(User $signer): Collection
     {
         $min = (int) config('civicledger.certificate.min_minutes');
@@ -58,7 +74,7 @@ class CertificateService
                             ->where('status', Certificate::ISSUED)
                             ->exists();
 
-                        if ($minutes >= $min && ! $active) {
+                        if ($minutes >= $min && ! $active && $this->unconfirmedRecordCount($assignment->user, $section->term) === 0) {
                             $out->put($key, [
                                 'student_id' => $assignment->user_id,
                                 'student_name' => $assignment->user->full_name,
@@ -73,13 +89,31 @@ class CertificateService
         return $out->values();
     }
 
-    public function issue(User $signer, User $student, Term $term, ?Certificate $supersedes = null): Certificate
+    public function issue(User $signer, User $student, Term $term): Certificate
     {
-        return DB::transaction(function () use ($signer, $student, $term, $supersedes) {
-            $minutes = $this->eligibleMinutes($student, $term);
+        return $this->createCertificate($signer, $student, $term);
+    }
 
-            if ($minutes < (int) config('civicledger.certificate.min_minutes')) {
-                throw ValidationException::withMessages(['student_id' => 'Not eligible: no qualifying approved hours for this term.']);
+    /** F5.4: issues the replacement and retires the current certificate in one transaction. */
+    public function supersede(User $signer, Certificate $certificate, string $reason): Certificate
+    {
+        return $this->createCertificate($signer, $certificate->student, $certificate->term, $certificate, $reason);
+    }
+
+    private function createCertificate(User $signer, User $student, Term $term, ?Certificate $supersedes = null, ?string $reason = null): Certificate
+    {
+        return DB::transaction(function () use ($signer, $student, $term, $supersedes, $reason) {
+            $minutes = $this->eligibleMinutes($student, $term);
+            $shortfall = (int) config('civicledger.certificate.min_minutes') - $minutes;
+
+            if ($shortfall > 0) {
+                throw ValidationException::withMessages(['student_id' => "Not eligible: {$shortfall} more approved ".Str::plural('minute', $shortfall).' needed this term.']);
+            }
+
+            $unconfirmed = $this->unconfirmedRecordCount($student, $term);
+
+            if ($unconfirmed > 0) {
+                throw ValidationException::withMessages(['student_id' => "Not eligible yet: blockchain confirmation is still pending for {$unconfirmed} approved ".Str::plural('record', $unconfirmed).'.']);
             }
 
             $active = Certificate::where('student_id', $student->id)
@@ -92,8 +126,8 @@ class CertificateService
                 throw ValidationException::withMessages(['student_id' => 'An active certificate already exists. Supersede it instead.']);
             }
 
-            if ($supersedes && (! $active || $supersedes->student_id !== $student->id || $supersedes->term_id !== $term->id)) {
-                throw ValidationException::withMessages(['supersedes_certificate_id' => 'The certificate to supersede is not an active certificate for this student and term.']);
+            if ($supersedes && ! $active) {
+                throw ValidationException::withMessages(['certificate' => 'Only an active certificate can be superseded.']);
             }
 
             $certificate = Certificate::create([
@@ -113,8 +147,8 @@ class CertificateService
             if ($supersedes) {
                 $supersedes->update(['status' => Certificate::SUPERSEDED]);
                 BlockchainProof::where('certificate_id', $supersedes->id)->update(['validity_status' => BlockchainProof::SUPERSEDED]);
-                $this->event($supersedes, $signer, 'superseded', 'Superseded by '.$certificate->certificate_number);
-                $this->audit->log($signer, 'certificate.superseded', $supersedes, ['status' => Certificate::ISSUED], ['status' => Certificate::SUPERSEDED]);
+                $this->event($supersedes, $signer, 'superseded', $reason);
+                $this->audit->log($signer, 'certificate.superseded', $supersedes, ['status' => Certificate::ISSUED], ['status' => Certificate::SUPERSEDED, 'reason' => $reason, 'replaced_by' => $certificate->certificate_number]);
             }
 
             $proof = $this->proofs->queueForCertificate($certificate);

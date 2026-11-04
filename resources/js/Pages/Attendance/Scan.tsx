@@ -284,7 +284,7 @@ export default function AttendanceScan() {
                             <div className="grid gap-2">
                                 <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
                                     {challengeExpired
-                                        ? 'This QR challenge has expired. Scan the current code again.'
+                                        ? 'This code has expired. Ask the coordinator to show the current code.'
                                         : `This QR challenge expires in ${remainingSeconds} seconds. Submit it before it expires.`}
                                 </p>
                                 <div

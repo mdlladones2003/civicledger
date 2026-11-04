@@ -69,7 +69,7 @@ export function statusLabel(value: unknown): string {
 export function statusClass(value: unknown): string {
     const status = text(value).toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ');
 
-    if (['approved', 'confirmed', 'current', 'verified', 'valid'].includes(status)) {
+    if (['active', 'approved', 'confirmed', 'current', 'verified', 'valid'].includes(status)) {
         return 'border-status-success-border bg-status-success text-status-success-foreground';
     }
 
@@ -77,7 +77,7 @@ export function statusClass(value: unknown): string {
         return 'border-status-pending-border bg-status-pending text-status-pending-foreground';
     }
 
-    if (['rejected', 'failed', 'mismatch', 'revoked', 'blocked'].includes(status)) {
+    if (['rejected', 'failed', 'mismatch', 'revoked', 'blocked', 'suspended'].includes(status)) {
         return 'border-status-danger-border bg-status-danger text-status-danger-foreground';
     }
 
@@ -87,7 +87,7 @@ export function statusClass(value: unknown): string {
 export function statusIconClass(value: unknown): string {
     const status = text(value).toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ');
 
-    if (['approved', 'confirmed', 'current', 'verified', 'valid'].includes(status)) {
+    if (['active', 'approved', 'confirmed', 'current', 'verified', 'valid'].includes(status)) {
         return 'text-status-success-border';
     }
 
@@ -95,7 +95,7 @@ export function statusIconClass(value: unknown): string {
         return 'text-status-pending-border';
     }
 
-    if (['rejected', 'failed', 'mismatch', 'revoked', 'blocked'].includes(status)) {
+    if (['rejected', 'failed', 'mismatch', 'revoked', 'blocked', 'suspended'].includes(status)) {
         return 'text-status-danger-border';
     }
 

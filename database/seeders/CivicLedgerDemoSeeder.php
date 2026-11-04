@@ -142,7 +142,8 @@ class CivicLedgerDemoSeeder extends Seeder
             }
         }
 
-        if ($approved) {
+        // Issuance needs a confirmed proof, which only the fake driver provides during seeding.
+        if ($approved && config('civicledger.proof.driver') === 'fake') {
             app(CertificateService::class)->issue($signer, $students[0], $term);
         }
 

@@ -17,7 +17,7 @@ class MyHoursController extends Controller
         return Inertia::render('Student/MyHours', [
             'summary' => $reports->studentSummary($user),
             'attendance' => Attendance::where('student_id', $user->id)
-                ->with(['session.event:id,title,starts_at', 'serviceRecord:id,attendance_id,status,approved_minutes'])
+                ->with(['session.event:id,title,starts_at', 'serviceRecord:id,attendance_id,status,approved_minutes,review_note'])
                 ->latest('check_in_at')
                 ->paginate(20)
                 ->withQueryString(),

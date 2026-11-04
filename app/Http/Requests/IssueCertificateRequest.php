@@ -16,7 +16,6 @@ class IssueCertificateRequest extends FormRequest
         return [
             'student_id' => ['required', 'integer', 'exists:users,id'],
             'term_id' => ['required', 'integer', 'exists:terms,id'],
-            'supersedes_certificate_id' => ['nullable', 'integer', 'exists:certificates,id'],
         ];
     }
 }

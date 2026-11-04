@@ -19,7 +19,7 @@ import { dateTimeLocal, text, statusLabel, statusClass, statusIconClass } from '
 
 export function Status({ value }: { value: unknown }) {
     const status = text(value).toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ');
-    const Icon = ['approved', 'confirmed', 'current', 'valid'].includes(status)
+    const Icon = ['active', 'approved', 'confirmed', 'current', 'valid'].includes(status)
         ? Check
         : status === 'verified'
             ? ShieldCheck
@@ -31,7 +31,7 @@ export function Status({ value }: { value: unknown }) {
                     ? Circle
                     : ['revision requested'].includes(status)
                         ? RefreshCw
-                        : ['rejected', 'failed', 'mismatch', 'revoked', 'blocked'].includes(status)
+                        : ['rejected', 'failed', 'mismatch', 'revoked', 'blocked', 'suspended'].includes(status)
                             ? ['mismatch', 'revoked'].includes(status) ? ShieldX : X
                             : status === 'not found'
                                 ? FileQuestion
@@ -107,11 +107,12 @@ export function csrfToken(): string {
     return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 }
 
-export function ActionForm({ action, children, button = 'Submit', method = 'post' }: {
+export function ActionForm({ action, children, button = 'Submit', method = 'post', variant = 'default' }: {
     action: string;
     children?: ReactNode;
     button?: string;
     method?: 'post' | 'delete' | 'put' | 'patch';
+    variant?: 'default' | 'destructive';
 }) {
     const token = csrfToken();
 
@@ -120,7 +121,7 @@ export function ActionForm({ action, children, button = 'Submit', method = 'post
             <input type="hidden" name="_token" value={token} />
             {method !== 'post' && <input type="hidden" name="_method" value={method} />}
             {children}
-            <Button type="submit" size="lg" className="min-h-11 w-fit">
+            <Button type="submit" size="lg" variant={variant} className="min-h-11 w-fit">
                 {button}
             </Button>
         </form>

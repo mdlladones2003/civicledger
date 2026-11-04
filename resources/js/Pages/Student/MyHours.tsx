@@ -70,7 +70,10 @@ export default function MyHours({ props }: { props: Data }) {
                                     <Cell>{displayEventTitle(event.title)}</Cell>
                                     <Cell>{date(entry.check_in_at, { dateStyle: 'medium', timeStyle: 'short' })}</Cell>
                                     <Cell>{date(entry.check_out_at, { dateStyle: 'medium', timeStyle: 'short' })}</Cell>
-                                    <Cell><Status value={record.status ?? 'pending'} /></Cell>
+                                    <Cell>
+                                        <Status value={record.status ?? 'pending'} />
+                                        {Boolean(record.review_note) && <p className="mt-1 text-sm text-muted-foreground">{text(record.review_note)}</p>}
+                                    </Cell>
                                     <Cell>{record.approved_minutes ? hours(record.approved_minutes) : '—'}</Cell>
                                 </TableRow>
                             );

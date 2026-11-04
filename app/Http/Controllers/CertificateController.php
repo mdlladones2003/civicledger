@@ -41,6 +41,7 @@ class CertificateController extends Controller
 
             return Inertia::render('Certificates/Signer', [
                 'candidates' => $this->certificates->eligibleCandidates($user),
+                'canRevoke' => $user->hasPermission('certificates.revoke'),
                 'issued' => Certificate::whereIn('student_id', $studentsInScope)
                     ->with(['student:id,first_name,middle_name,last_name', 'term:id,code', 'proof:id,certificate_id,proof_status,validity_status'])
                     ->latest('issued_at')
@@ -65,17 +66,21 @@ class CertificateController extends Controller
 
         Gate::authorize('issueFor', [Certificate::class, $student, $term]);
 
-        $supersedes = $request->filled('supersedes_certificate_id')
-            ? Certificate::findOrFail($request->integer('supersedes_certificate_id'))
-            : null;
-
-        if ($supersedes) {
-            Gate::authorize('revoke', $supersedes); // superseding retires a certificate: needs the same authority
-        }
-
-        $this->certificates->issue($request->user(), $student, $term, $supersedes);
+        $this->certificates->issue($request->user(), $student, $term);
 
         return back()->with('success', 'Certificate issued. Proof queued.');
+    }
+
+    /** F5.4: superseding retires a certificate and issues another, so it needs both authorities. */
+    public function supersede(Request $request, Certificate $certificate)
+    {
+        Gate::authorize('revoke', $certificate);
+        Gate::authorize('issueFor', [Certificate::class, $certificate->student, $certificate->term]);
+
+        $data = $request->validate(['reason' => ['required', 'string', 'min:10', 'max:500']]);
+        $this->certificates->supersede($request->user(), $certificate, $data['reason']);
+
+        return back()->with('success', 'Certificate superseded. Proof queued for the replacement.');
     }
 
     public function revoke(Request $request, Certificate $certificate)

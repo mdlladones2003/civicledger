@@ -18,7 +18,7 @@ class ServiceRecord extends Model
 
     protected $fillable = [
         'attendance_id', 'student_id', 'approved_minutes', 'status',
-        'approved_by', 'approved_at', 'current_version',
+        'approved_by', 'approved_at', 'review_note', 'current_version',
     ];
 
     protected function casts(): array

@@ -4,7 +4,7 @@ namespace App\Exceptions;
 
 use RuntimeException;
 
-/** Understandable reasons for QR failures (Design Brief §4). */
+/** Understandable reasons for QR failures; copy follows the Design Brief §7 catalogue. */
 class ScanRejectedException extends RuntimeException
 {
     public function __construct(
@@ -18,12 +18,12 @@ class ScanRejectedException extends RuntimeException
 
     public static function invalid(): self
     {
-        return new self('invalid', 'This QR code is not valid. Ask the coordinator to show the code again and rescan.');
+        return new self('invalid', 'This isn\'t a CivicLedger attendance code. Scan the code shown by your coordinator.');
     }
 
     public static function expired(): self
     {
-        return new self('expired', 'This QR code has expired. Scan the code currently shown on the coordinator\'s screen.');
+        return new self('expired', 'This code has expired. Ask the coordinator to show the current code.');
     }
 
     public static function sessionClosed(): self
@@ -33,7 +33,7 @@ class ScanRejectedException extends RuntimeException
 
     public static function notRegistered(): self
     {
-        return new self('not_registered', 'You are not registered for this event. Register first, or ask a coordinator.');
+        return new self('not_registered', 'You need to register for this event before scanning.');
     }
 
     public static function duplicate(?string $eventTitle = null): self

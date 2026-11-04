@@ -69,6 +69,7 @@ class ServiceRecordService
                 'status' => ServiceRecord::APPROVED,
                 'approved_by' => $actor->id,
                 'approved_at' => now(),
+                'review_note' => null,
                 'current_version' => $version,
             ])->save();
 
@@ -119,7 +120,7 @@ class ServiceRecordService
             }
 
             $before = ['status' => $record->status];
-            $record->update(['status' => $status]);
+            $record->update(['status' => $status, 'review_note' => $reason]); // F3.4-A2: the student sees the reason
             $this->audit->log($actor, $action, $record, $before, ['status' => $status, 'reason' => $reason]);
 
             return $record;

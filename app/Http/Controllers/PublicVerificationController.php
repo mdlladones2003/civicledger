@@ -126,7 +126,7 @@ class PublicVerificationController extends Controller
 
     private function disclaimer(): string
     {
-        return 'This check confirms the integrity of the record, not that the person physically took part. '
-            .'The certificate is supplementary and not an official NSTP completion record unless the school adopts it.';
+        return 'Integrity checks show a record has not been altered since approval. They do not prove actual participation. '
+            .'This is a supplementary record, not an official completion record unless adopted by the school.';
     }
 }

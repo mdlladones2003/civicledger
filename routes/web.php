@@ -133,13 +133,16 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsurePasswordChanged::class
         Route::post('/proofs/{proof}/retry', [ProofController::class, 'retry'])->name('proofs.retry');
     });
 
-    // Certificates: issue / revoke
+    // Certificates: issue / revoke / supersede
     Route::post('/certificates', [CertificateController::class, 'store'])
         ->middleware(RequirePermission::class.':certificates.issue')
         ->name('certificates.store');
     Route::post('/certificates/{certificate}/revoke', [CertificateController::class, 'revoke'])
         ->middleware(RequirePermission::class.':certificates.revoke')
         ->name('certificates.revoke');
+    Route::post('/certificates/{certificate}/supersede', [CertificateController::class, 'supersede'])
+        ->middleware(RequirePermission::class.':certificates.revoke')
+        ->name('certificates.supersede');
 
     // Reports
     Route::get('/reports', [ReportController::class, 'index'])

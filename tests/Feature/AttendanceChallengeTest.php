@@ -60,7 +60,7 @@ it('rejects an expired QR challenge when checking its remaining lifetime', funct
         ->postJson(route('attendance.scan.challenge'), ['token' => $challenge['token']])
         ->assertUnprocessable()
         ->assertExactJson([
-            'message' => 'This QR code has expired. Scan the code currently shown on the coordinator\'s screen.',
+            'message' => 'This code has expired. Ask the coordinator to show the current code.',
         ]);
 });
 
@@ -113,6 +113,7 @@ it('returns a standard JSON error envelope for an invalid attendance QR', functi
         ->postJson(route('attendance.scan.store'), ['payload' => 'invalid-payload'])
         ->assertBadRequest()
         ->assertJsonPath('error.code', 'qr_invalid')
+        ->assertJsonPath('error.message', 'This isn\'t a CivicLedger attendance code. Scan the code shown by your coordinator.')
         ->assertJsonPath('error.retryable', false)
         ->assertJsonStructure(['error' => ['code', 'message', 'retryable', 'request_id']]);
 });
@@ -144,7 +145,8 @@ it('returns a not-registered JSON error without creating attendance', function (
     $this->actingAs(User::factory()->create())
         ->postJson(route('attendance.scan.store'), ['payload' => $challenge['token']])
         ->assertForbidden()
-        ->assertJsonPath('error.code', 'not_registered');
+        ->assertJsonPath('error.code', 'not_registered')
+        ->assertJsonPath('error.message', 'You need to register for this event before scanning.');
 
     $this->assertDatabaseCount('attendance', 0);
 });
