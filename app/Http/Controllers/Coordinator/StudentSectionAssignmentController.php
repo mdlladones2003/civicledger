@@ -6,11 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Program;
 use App\Models\Section;
 use App\Models\Term;
-use App\Models\User;
 use App\Models\UserSectionAssignment;
 use App\Services\AuditLogger;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +31,7 @@ class StudentSectionAssignmentController extends Controller
                 ->get(['id', 'program_id', 'term_id', 'code']),
             'programs' => Program::query()->orderBy('code')->get(['id', 'code', 'name']),
             'terms' => Term::query()->orderByDesc('starts_at')->get(['id', 'code', 'starts_at', 'ends_at']),
-            'assignments' => UserSectionAssignment::query()
+            'students' => UserSectionAssignment::query()
                 ->with([
                     'user:id,first_name,middle_name,last_name,email',
                     'section:id,code,program_id,term_id',
@@ -48,40 +45,39 @@ class StudentSectionAssignmentController extends Controller
         ]);
     }
 
-    public function searchStudents(Request $request): JsonResponse
+    public function storeProgram(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'q' => ['required', 'string', 'min:2', 'max:120'],
+            'code' => ['required', 'string', 'max:30', 'unique:programs,code'],
+            'name' => ['required', 'string', 'max:150'],
         ]);
-        $query = trim($validated['q']);
 
-        if (mb_strlen($query) < 2) {
-            throw ValidationException::withMessages([
-                'q' => 'Enter at least two characters to search.',
-            ]);
-        }
+        $program = DB::transaction(function () use ($validated, $request): Program {
+            $program = Program::create($validated);
+            $this->audit->log($request->user(), 'program.created', $program, null, $program->only(['code', 'name']));
 
-        $students = $this->activeStudents();
+            return $program;
+        });
 
-        foreach (preg_split('/\s+/', $query) ?: [] as $term) {
-            $students->where(fn (Builder $query) => $query
-                ->where('first_name', 'like', "%{$term}%")
-                ->orWhere('middle_name', 'like', "%{$term}%")
-                ->orWhere('last_name', 'like', "%{$term}%"));
-        }
+        return back()->with('success', "Program {$program->code} created.");
+    }
 
-        return response()->json([
-            'students' => $students
-                ->orderBy('last_name')
-                ->orderBy('first_name')
-                ->limit(10)
-                ->get(['id', 'first_name', 'middle_name', 'last_name', 'email'])
-                ->map(fn (User $student): array => [
-                    'id' => $student->id,
-                    'name' => $student->full_name,
-                    'email' => $student->email,
-                ]),
+    public function storeTerm(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:30', 'unique:terms,code'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after_or_equal:starts_at'],
         ]);
+
+        $term = DB::transaction(function () use ($validated, $request): Term {
+            $term = Term::create($validated);
+            $this->audit->log($request->user(), 'term.created', $term, null, $term->only(['code', 'starts_at', 'ends_at']));
+
+            return $term;
+        });
+
+        return back()->with('success', "Term {$term->code} created.");
     }
 
     public function storeSection(Request $request): RedirectResponse
@@ -127,53 +123,5 @@ class StudentSectionAssignmentController extends Controller
         });
 
         return back()->with('success', "Section {$section->code} created and added to your section selection.");
-    }
-
-    public function store(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'student_id' => ['required', 'integer', 'exists:users,id'],
-            'section_id' => ['required', 'integer', 'exists:sections,id'],
-        ]);
-
-        $sectionIds = $request->user()->assignedSectionIds(UserSectionAssignment::COORDINATOR);
-        abort_unless($sectionIds->contains((int) $validated['section_id']), 403, 'That section is outside your assignment.');
-
-        $student = $this->activeStudents()
-            ->whereKey($validated['student_id'])
-            ->first();
-
-        if (! $student) {
-            throw ValidationException::withMessages([
-                'student_id' => 'Select an active student account.',
-            ]);
-        }
-
-        $assignment = UserSectionAssignment::firstOrCreate([
-            'user_id' => $student->id,
-            'section_id' => (int) $validated['section_id'],
-            'scope_role' => UserSectionAssignment::STUDENT,
-        ]);
-
-        if ($assignment->wasRecentlyCreated) {
-            $this->audit->log(
-                $request->user(),
-                'assignment.created',
-                $assignment,
-                null,
-                $assignment->only(['user_id', 'section_id', 'scope_role']),
-            );
-        }
-
-        return back()->with('success', $assignment->wasRecentlyCreated
-            ? 'Student assigned to section.'
-            : 'Student is already assigned to this section.');
-    }
-
-    private function activeStudents(): Builder
-    {
-        return User::query()
-            ->where('status', 'active')
-            ->whereHas('roles', fn (Builder $query) => $query->where('code', 'student'));
     }
 }

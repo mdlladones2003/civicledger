@@ -54,7 +54,11 @@ export default function EventShow({ props }: { props: Data }) {
                         {registration.status === 'registered' ? (
                             <div className="grid gap-3">
                                 <p className="text-sm text-muted-foreground">You are registered for this event.</p>
-                                <ActionForm action={`/events/${text(event.id)}/register`} method="delete" button="Cancel registration" />
+                                {Boolean(props.canCancelRegistration) ? (
+                                    <ActionForm action={`/events/${text(event.id)}/register`} method="delete" button="Cancel registration" />
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">Attendance has been recorded.</p>
+                                )}
                             </div>
                         ) : (
                             <ActionForm action={`/events/${text(event.id)}/register`} button="Register for event" />
@@ -72,7 +76,22 @@ export default function EventShow({ props }: { props: Data }) {
                                     <Cell>{date(session.starts_at, { dateStyle: 'medium', timeStyle: 'short' })}</Cell>
                                     <Cell>{date(session.ends_at, { dateStyle: 'medium', timeStyle: 'short' })}</Cell>
                                     <Cell><Status value={session.status} /></Cell>
-                                    <Cell><Link className="font-semibold text-civic underline" href={`/sessions/${text(session.id)}/qr`}>Open live roster</Link></Cell>
+                                    <Cell>
+                                        {Boolean(session.attendance_ended) ? (
+                                            <span className="text-sm text-muted-foreground">Attendance unavailable — event or session ended</span>
+                                        ) : session.status === 'scheduled' && event.status === 'published' ? (
+                                            <ActionForm
+                                                action={`/sessions/${text(session.id)}/open`}
+                                                button="Open attendance"
+                                            />
+                                        ) : session.status === 'scheduled' ? (
+                                            <span className="text-sm text-muted-foreground">Publish event to open attendance</span>
+                                        ) : (
+                                            <Link className="font-semibold text-civic underline" href={`/sessions/${text(session.id)}/qr`}>
+                                                {session.status === 'open' ? 'Live attendance' : 'View attendance roster'}
+                                            </Link>
+                                        )}
+                                    </Cell>
                                 </TableRow>
                             ))}
                         </Table>

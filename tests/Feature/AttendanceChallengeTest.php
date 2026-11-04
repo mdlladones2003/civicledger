@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Attendance;
 use App\Models\Event;
 use App\Models\EventSession;
 use App\Models\Program;
@@ -94,6 +95,7 @@ it('accepts the TRD payload field and records check-in and check-out with server
     ]);
 
     $this->travel(31)->seconds();
+    $session->update(['qr_challenge_mode' => EventSession::QR_MODE_CHECK_OUT]);
     $checkOutChallenge = $qr->issue($session);
     $checkOut = $this->postJson(route('attendance.scan.store'), ['payload' => $checkOutChallenge['token']]);
 
@@ -147,4 +149,52 @@ it('returns a not-registered JSON error without creating attendance', function (
         ->assertJsonPath('error.code', 'not_registered');
 
     $this->assertDatabaseCount('attendance', 0);
+});
+
+it('does not allow a check-in QR challenge to check a student out', function () {
+    $session = openSessionForQrChallenge();
+    $student = User::factory()->create();
+    Registration::create([
+        'event_id' => $session->event_id,
+        'student_id' => $student->id,
+        'status' => Registration::REGISTERED,
+    ]);
+
+    $checkInChallenge = app(QrChallengeService::class)->issue($session);
+
+    $this->actingAs($student)
+        ->postJson(route('attendance.scan.store'), ['payload' => $checkInChallenge['token']])
+        ->assertOk()
+        ->assertJsonPath('result', 'checked_in');
+
+    $secondCheckInChallenge = app(QrChallengeService::class)->issue($session);
+
+    $this->actingAs($student)
+        ->postJson(route('attendance.scan.store'), ['payload' => $secondCheckInChallenge['token']])
+        ->assertConflict()
+        ->assertJsonPath('error.code', 'invalid_state');
+});
+
+it('rejects QR checkout when a manually recorded check-in is in the future', function () {
+    $session = openSessionForQrChallenge();
+    $student = User::factory()->create();
+    Registration::create([
+        'event_id' => $session->event_id,
+        'student_id' => $student->id,
+        'status' => Registration::REGISTERED,
+    ]);
+    Attendance::create([
+        'session_id' => $session->id,
+        'student_id' => $student->id,
+        'check_in_at' => now()->addHour(),
+        'source' => Attendance::SOURCE_MANUAL,
+        'status' => Attendance::STATUS_CHECKED_IN,
+    ]);
+    $session->update(['qr_challenge_mode' => EventSession::QR_MODE_CHECK_OUT]);
+    $challenge = app(QrChallengeService::class)->issue($session);
+
+    $this->actingAs($student)
+        ->postJson(route('attendance.scan.store'), ['payload' => $challenge['token']])
+        ->assertConflict()
+        ->assertJsonPath('error.code', 'invalid_state');
 });

@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventSession;
 use App\Models\QrChallenge;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -19,29 +20,74 @@ class QrChallengeService
     /** @return array{token:string,expires_at:string,ttl:int} */
     public function issue(EventSession $session): array
     {
-        abort_unless($session->status === EventSession::STATUS_OPEN, 409, 'This session is not open for attendance.');
+        return DB::transaction(function () use ($session): array {
+            $session = EventSession::query()
+                ->with('event')
+                ->lockForUpdate()
+                ->findOrFail($session->id);
 
-        $ttl = (int) config('civicledger.qr.ttl_seconds');
-        $expires = now()->addSeconds($ttl);
-        $nonce = Str::random(40);
+            abort_unless(
+                ! $session->hasEnded(),
+                409,
+                'This event or attendance session has ended. QR challenges are unavailable.',
+            );
+            abort_unless(
+                $session->status === EventSession::STATUS_OPEN
+                    && $session->event->status === Event::STATUS_PUBLISHED,
+                409,
+                'Attendance is not open. Ask the coordinator to open this session.',
+            );
+            abort_unless(
+                $session->qr_challenge_enabled,
+                409,
+                'QR attendance is temporarily stopped by the coordinator. Wait until a new code is shown.',
+            );
 
-        QrChallenge::create([
-            'session_id' => $session->id,
-            'nonce_hash' => $this->hash($nonce),
-            'expires_at' => $expires,
-        ]);
+            $now = now();
+            $ttl = (int) config('civicledger.qr.ttl_seconds');
+            $expiresAt = min(
+                $now->getTimestamp() + $ttl,
+                $session->ends_at->getTimestamp(),
+                $session->event->ends_at->getTimestamp(),
+            );
+            $ttl = $expiresAt - $now->getTimestamp();
+            abort_unless(
+                $ttl > 0,
+                409,
+                'This event or attendance session has ended. QR challenges are unavailable.',
+            );
+            $expires = $now->copy()->setTimestamp($expiresAt);
+            $nonce = Str::random(40);
 
-        return [
-            'token' => Crypt::encryptString(json_encode(['s' => $session->id, 'n' => $nonce, 'e' => $expires->getTimestamp()])),
-            'expires_at' => $expires->toIso8601String(),
-            'ttl' => $ttl,
-        ];
+            QrChallenge::create([
+                'session_id' => $session->id,
+                'nonce_hash' => $this->hash($nonce),
+                'expires_at' => $expires,
+            ]);
+
+            return [
+                'token' => Crypt::encryptString(json_encode([
+                    's' => $session->id,
+                    'n' => $nonce,
+                    'e' => $expires->getTimestamp(),
+                    'm' => $session->qr_challenge_mode,
+                ])),
+                'expires_at' => $expires->toIso8601String(),
+                'ttl' => $ttl,
+            ];
+        });
     }
 
     /** @throws ScanRejectedException */
     public function verify(string $token): EventSession
     {
         return $this->validatedChallenge($token)['session'];
+    }
+
+    /** @throws ScanRejectedException */
+    public function mode(string $token): string
+    {
+        return $this->validatedChallenge($token)['mode'];
     }
 
     /** @throws ScanRejectedException */
@@ -53,7 +99,7 @@ class QrChallengeService
     }
 
     /**
-     * @return array{session: EventSession, expires_at: int}
+     * @return array{session: EventSession, expires_at: int, mode: string}
      *
      * @throws ScanRejectedException
      */
@@ -65,13 +111,39 @@ class QrChallengeService
             throw ScanRejectedException::invalid();
         }
 
-        if (! is_array($payload) || ! isset($payload['s'], $payload['n'], $payload['e'])) {
+        if (! is_array($payload) || ! isset($payload['s'], $payload['n'], $payload['e'], $payload['m'])) {
+            throw ScanRejectedException::invalid();
+        }
+
+        if (! in_array($payload['m'], [EventSession::QR_MODE_CHECK_IN, EventSession::QR_MODE_CHECK_OUT], true)) {
             throw ScanRejectedException::invalid();
         }
 
         // Server clock only (TRD §5).
         if ((int) $payload['e'] < now()->getTimestamp()) {
             throw ScanRejectedException::expired();
+        }
+
+        $session = EventSession::with('event')->find($payload['s']);
+
+        if (! $session) {
+            throw ScanRejectedException::sessionClosed();
+        }
+
+        if ($payload['m'] !== $session->qr_challenge_mode) {
+            throw ScanRejectedException::wrongChallengeMode();
+        }
+
+        if ($session->hasEnded()) {
+            throw ScanRejectedException::sessionEnded();
+        }
+
+        if (! $session->qr_challenge_enabled) {
+            throw ScanRejectedException::challengePaused();
+        }
+
+        if ($session->status !== EventSession::STATUS_OPEN || $session->event->status !== Event::STATUS_PUBLISHED) {
+            throw ScanRejectedException::sessionClosed();
         }
 
         $challenge = QrChallenge::query()
@@ -87,17 +159,10 @@ class QrChallengeService
             throw ScanRejectedException::expired();
         }
 
-        $session = EventSession::with('event')->find($payload['s']);
-
-        if (! $session
-            || $session->status !== EventSession::STATUS_OPEN
-            || $session->event->status !== Event::STATUS_PUBLISHED) {
-            throw ScanRejectedException::sessionClosed();
-        }
-
         return [
             'session' => $session,
             'expires_at' => (int) $payload['e'],
+            'mode' => (string) $payload['m'],
         ];
     }
 

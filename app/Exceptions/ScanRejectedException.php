@@ -28,7 +28,17 @@ class ScanRejectedException extends RuntimeException
 
     public static function sessionClosed(): self
     {
-        return new self('session_closed', 'Attendance for this session is not open.');
+        return new self('session_closed', 'Attendance is not open. Ask the coordinator to open this session.');
+    }
+
+    public static function challengePaused(): self
+    {
+        return new self('session_closed', 'QR attendance is temporarily stopped by the coordinator. Wait until a new code is shown.');
+    }
+
+    public static function sessionEnded(): self
+    {
+        return new self('session_closed', 'This event or attendance session has ended. Check-in and check-out are no longer available.');
     }
 
     public static function notRegistered(): self
@@ -44,5 +54,15 @@ class ScanRejectedException extends RuntimeException
     public static function tooSoon(): self
     {
         return new self('too_soon', 'You just checked in. Wait a moment before scanning to check out.');
+    }
+
+    public static function wrongChallengeMode(): self
+    {
+        return new self('wrong_challenge_mode', 'This QR code is for check-in only. Use the current check-out QR code to leave.');
+    }
+
+    public static function checkoutWithoutCheckIn(): self
+    {
+        return new self('checkout_without_check_in', 'You must check in before using the check-out QR code.');
     }
 }

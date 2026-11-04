@@ -9,6 +9,6 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Synthetic demo data only. The demo seeder refuses to run in production.
-        $this->call(CivicLedgerDemoSeeder::class);
+        $this->call(CivicLedgerSeeder::class);
     }
 }

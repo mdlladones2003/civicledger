@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'timezone' => env('CIVICLEDGER_TIMEZONE', 'Asia/Manila'),
+
     'qr' => [
         'ttl_seconds' => (int) env('CIVICLEDGER_QR_TTL', 30),
         // Ignore a second scan from the same student within this window (accidental double-scan).

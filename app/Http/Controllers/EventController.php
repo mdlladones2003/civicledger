@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreEventRequest;
+use App\Models\Attendance;
 use App\Models\Event;
 use App\Models\EventSession;
 use App\Models\Registration;
@@ -87,12 +88,24 @@ class EventController extends Controller
         $manages = Gate::allows('manage', $event);
 
         $event->load(['section:id,code', 'program:id,code,name', 'sessions']);
+        $event->sessions->each(function (EventSession $session) use ($event): void {
+            $session->setAttribute('attendance_ended', $session->hasEnded($event));
+        });
+        $registration = Registration::where('event_id', $event->id)
+            ->where('student_id', $user->id)
+            ->first();
+        $canCancelRegistration = $registration?->status === Registration::REGISTERED
+            && ! Attendance::query()
+                ->where('student_id', $user->id)
+                ->whereHas('session', fn ($query) => $query->where('event_id', $event->id))
+                ->exists();
 
         return Inertia::render('Events/Show', [
             'event' => $event,
             'canManage' => $manages,
             'canRegister' => Gate::allows('register', $event),
-            'registration' => Registration::where('event_id', $event->id)->where('student_id', $user->id)->first(),
+            'registration' => $registration,
+            'canCancelRegistration' => $canCancelRegistration,
             // F2.4: roster visible to authorized coordinators only.
             'roster' => $manages
                 ? Registration::where('event_id', $event->id)->with('student:id,first_name,middle_name,last_name,email')->orderBy('created_at')->paginate(50)
