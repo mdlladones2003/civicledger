@@ -45,14 +45,24 @@ class AttendanceController extends Controller
                 return $this->scanErrorResponse($e);
             }
 
-            return back()->withErrors(['token' => $e->getMessage()])->with('scan_reason', $e->reason);
+            // The check-in stands and nothing changed, so the page reports it like any other repeat scan (F3.2-A2).
+            if ($e->reason === 'too_soon') {
+                return back()->with('scan', [
+                    'action' => 'already_checked_in',
+                    'at' => $e->checkedInAt->toIso8601String(),
+                ]);
+            }
+
+            return back()->withErrors(['token' => $e->getMessage()]);
         }
 
+        $attendance = $result['attendance'];
+        $at = in_array($result['action'], ['check_out', 'already_checked_out'], true)
+            ? $attendance->check_out_at
+            : $attendance->check_in_at;
+
         if ($request->expectsJson()) {
-            $attendance = $result['attendance']->loadMissing('session.event');
-            $at = in_array($result['action'], ['checked_out', 'already_checked_out'], true)
-                ? $attendance->check_out_at ?? $attendance->check_in_at
-                : $attendance->check_in_at;
+            $attendance->loadMissing('session.event');
 
             return response()->json([
                 'result' => $result['action'] === 'check_in' ? 'checked_in' : ($result['action'] === 'check_out' ? 'checked_out' : $result['action']),
@@ -63,7 +73,7 @@ class AttendanceController extends Controller
 
         return back()->with('scan', [
             'action' => $result['action'],
-            'at' => now()->toIso8601String(),
+            'at' => $at->toIso8601String(),
         ]);
     }
 

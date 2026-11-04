@@ -12,6 +12,5 @@ export type SharedProps = Data & {
     flash?: {
         success?: string;
         scan?: { action?: string; at?: string };
-        scan_reason?: string;
     };
 };

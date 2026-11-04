@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useForm, usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { Camera, CameraOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { csrfToken, Panel, PageHeading } from '@/components/app/Primitives';
+import { Panel, PageHeading } from '@/components/app/Primitives';
 import { AppShell } from '@/components/app/AppShell';
-import { date, text } from '@/lib/app';
+import { date } from '@/lib/app';
 import type { SharedProps } from '@/types/app';
 
 type BarcodeDetectorResult = {
@@ -22,30 +22,32 @@ type WindowWithBarcodeDetector = Window & {
     BarcodeDetector?: BarcodeDetectorConstructor;
 };
 
+function describeScan(action: string | undefined, at: string | undefined): { title: string; message: string } {
+    const time = date(at, { timeStyle: 'short' });
+
+    switch (action) {
+        case 'check_in':
+            return { title: 'Attendance recorded', message: `Checked in at ${time}.` };
+        case 'check_out':
+            return { title: 'Attendance recorded', message: `Checked out at ${time}.` };
+        case 'already_checked_out':
+            return { title: 'Already recorded', message: `You already checked out at ${time}.` };
+        default:
+            return { title: 'Already recorded', message: `You already checked in at ${time}.` };
+    }
+}
+
 export default function AttendanceScan() {
-    const { errors, flash } = usePage<SharedProps>().props;
-    const { data, setData, post, processing, errors: formErrors, clearErrors } = useForm({ token: '' });
+    const { flash } = usePage<SharedProps>().props;
+    const [manualToken, setManualToken] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [requestError, setRequestError] = useState('');
     const [cameraActive, setCameraActive] = useState(false);
     const [cameraError, setCameraError] = useState('');
-    const [challengeError, setChallengeError] = useState('');
-    const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
-    const [challengeDuration, setChallengeDuration] = useState<number | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const scanTimeoutRef = useRef<number | null>(null);
     const scanGenerationRef = useRef(0);
-
-    useEffect(() => {
-        if (remainingSeconds === null || remainingSeconds <= 0) {
-            return;
-        }
-
-        const timer = window.setTimeout(() => {
-            setRemainingSeconds((seconds) => seconds === null ? null : Math.max(0, seconds - 1));
-        }, 1000);
-
-        return () => window.clearTimeout(timer);
-    }, [remainingSeconds]);
 
     useEffect(() => () => {
         scanGenerationRef.current += 1;
@@ -69,53 +71,42 @@ export default function AttendanceScan() {
         setCameraActive(false);
     }
 
-    async function checkChallenge(token: string) {
-        const csrf = csrfToken();
+    /** A new attempt replaces the last result, so an old message can't be read as the answer to this one. */
+    function clearLastResult() {
+        setRequestError('');
+        router.replace({
+            preserveScroll: true,
+            preserveState: true,
+            props: (props) => ({ ...props, errors: {}, flash: {} }),
+        });
+    }
 
-        if (!csrf) {
-            setChallengeError('The security token is missing. Refresh the page and scan again.');
-            return;
-        }
+    /** No page visit follows a failed request, so Inertia won't bring the message into view. */
+    function showRequestError(message: string) {
+        setRequestError(message);
+        window.scrollTo({ top: 0 });
+    }
 
-        try {
-            const response = await fetch('/attendance/scan/challenge', {
-                method: 'POST',
-                credentials: 'same-origin',
-                cache: 'no-store',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrf,
-                },
-                body: JSON.stringify({ token }),
-            });
-            const result: unknown = await response.json();
+    function submitToken(token: string) {
+        clearLastResult();
+        setIsSubmitting(true);
 
-            if (typeof result !== 'object' || result === null) {
-                throw new Error('The server returned an invalid QR challenge response.');
-            }
+        router.post('/attendance/scan', { token }, {
+            onSuccess: () => setManualToken(''),
+            onHttpException: (response) => {
+                showRequestError(response.status === 429
+                    ? 'Too many scans. Wait a minute, then scan again.'
+                    : 'Your attendance could not be recorded. Refresh this page and scan again, or ask your coordinator for a manual entry.');
 
-            const payload = result as Record<string, unknown>;
+                return false;
+            },
+            onNetworkError: () => {
+                showRequestError('We couldn’t reach CivicLedger. Check your connection and scan again, or ask your coordinator for a manual entry.');
 
-            if (!response.ok) {
-                throw new Error(typeof payload.message === 'string'
-                    ? payload.message
-                    : 'This QR challenge could not be verified. Scan the current code again.');
-            }
-
-            if (typeof payload.remaining_seconds !== 'number' || !Number.isInteger(payload.remaining_seconds)) {
-                throw new Error('The server did not return the QR challenge expiry time. Scan the current code again.');
-            }
-
-            setRemainingSeconds(payload.remaining_seconds);
-            setChallengeDuration(payload.remaining_seconds);
-        } catch (error) {
-            setRemainingSeconds(null);
-            setChallengeDuration(null);
-            setChallengeError(error instanceof Error
-                ? error.message
-                : 'The QR challenge could not be checked. Check your connection and scan again.');
-        }
+                return false;
+            },
+            onFinish: () => setIsSubmitting(false),
+        });
     }
 
     async function startCamera() {
@@ -133,9 +124,7 @@ export default function AttendanceScan() {
 
         stopCamera();
         setCameraError('');
-        setChallengeError('');
-        setRemainingSeconds(null);
-        setChallengeDuration(null);
+        clearLastResult();
 
         const generation = scanGenerationRef.current;
 
@@ -174,11 +163,8 @@ export default function AttendanceScan() {
                     }
 
                     if (result?.rawValue.trim()) {
-                        const token = result.rawValue.trim();
                         stopCamera();
-                        setData('token', token);
-                        clearErrors();
-                        await checkChallenge(token);
+                        submitToken(result.rawValue.trim());
                         return;
                     }
 
@@ -210,24 +196,12 @@ export default function AttendanceScan() {
         }
     }
 
-    function submitToken(event: FormEvent<HTMLFormElement>) {
+    function submitManualToken(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        clearErrors();
-        post('/attendance/scan', { preserveScroll: true });
+        submitToken(manualToken.trim());
     }
 
-    function updateToken(token: string) {
-        setData('token', token);
-        setRemainingSeconds(null);
-        setChallengeDuration(null);
-        setChallengeError('');
-    }
-
-    const tokenError = formErrors.token ?? errors?.token;
-    const challengeExpired = remainingSeconds === 0;
-    const progress = remainingSeconds !== null && challengeDuration
-        ? Math.max(0, (remainingSeconds / challengeDuration) * 100)
-        : 0;
+    const scanResult = flash?.scan ? describeScan(flash.scan.action, flash.scan.at) : null;
 
     return (
         <AppShell title="Scan attendance">
@@ -237,18 +211,17 @@ export default function AttendanceScan() {
                     title="Check in to service"
                     description="Scan the current QR challenge with your camera, or enter its token manually."
                 />
-                {flash?.scan && (
+                {scanResult && (
                     <Alert variant="success" role="status">
-                        <AlertTitle>Attendance updated</AlertTitle>
-                        <AlertDescription>
-                            {text(flash.scan.action)} · {date(flash.scan.at, { dateStyle: 'medium', timeStyle: 'short' })}
-                        </AlertDescription>
+                        <AlertTitle>{scanResult.title}</AlertTitle>
+                        <AlertDescription>{scanResult.message}</AlertDescription>
                     </Alert>
                 )}
-                {(tokenError || flash?.scan_reason) && (
+                {/* AppShell already shows the reason when the server rejects a scan. This covers a request that got no usable answer. */}
+                {requestError && (
                     <Alert variant="destructive">
-                        <AlertTitle>Check-in could not be completed</AlertTitle>
-                        <AlertDescription>{tokenError ?? flash?.scan_reason}</AlertDescription>
+                        <AlertTitle>Scan not recorded</AlertTitle>
+                        <AlertDescription>{requestError}</AlertDescription>
                     </Alert>
                 )}
                 <Panel title="Scan QR challenge">
@@ -267,7 +240,7 @@ export default function AttendanceScan() {
                             </div>
                         )}
                         <div className="flex flex-wrap items-center gap-3">
-                            <Button type="button" onClick={startCamera} disabled={cameraActive || processing}>
+                            <Button type="button" onClick={startCamera} disabled={cameraActive || isSubmitting}>
                                 <Camera />
                                 Open camera
                             </Button>
@@ -279,33 +252,11 @@ export default function AttendanceScan() {
                             )}
                         </div>
                         {cameraError && <p className="text-sm text-destructive" role="alert">{cameraError}</p>}
-                        {challengeError && <p className="text-sm text-destructive" role="alert">{challengeError}</p>}
-                        {remainingSeconds !== null && (
-                            <div className="grid gap-2">
-                                <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
-                                    {challengeExpired
-                                        ? 'This code has expired. Ask the coordinator to show the current code.'
-                                        : `This QR challenge expires in ${remainingSeconds} seconds. Submit it before it expires.`}
-                                </p>
-                                <div
-                                    className="h-2 overflow-hidden rounded-full bg-muted"
-                                    role="progressbar"
-                                    aria-label="QR challenge time remaining"
-                                    aria-valuemin={0}
-                                    aria-valuemax={challengeDuration ?? 0}
-                                    aria-valuenow={remainingSeconds}
-                                >
-                                    <div
-                                        className="h-full rounded-full bg-civic transition-[width] duration-1000 ease-linear"
-                                        style={{ width: `${progress}%` }}
-                                    />
-                                </div>
-                            </div>
-                        )}
+                        {isSubmitting && <p className="text-sm text-muted-foreground" role="status">Recording your attendance…</p>}
                     </div>
                 </Panel>
                 <Panel title="Enter token manually">
-                    <form onSubmit={submitToken} className="grid gap-3">
+                    <form onSubmit={submitManualToken} className="grid gap-3">
                         <Label className="grid gap-2 text-sm font-medium text-foreground">
                             <span>QR challenge token</span>
                             <Textarea
@@ -313,17 +264,17 @@ export default function AttendanceScan() {
                                 rows={4}
                                 autoComplete="off"
                                 required
-                                value={data.token}
-                                onChange={(event) => updateToken(event.target.value)}
+                                value={manualToken}
+                                onChange={(event) => setManualToken(event.target.value)}
                                 className="break-all text-sm"
                                 aria-describedby="scan-help"
                             />
                         </Label>
                         <p id="scan-help" className="text-xs leading-5 text-muted-foreground">
-                            A scanned token's remaining time is shown above. Expired tokens must be rescanned from the current code.
+                            Expired tokens must be replaced with the current code.
                         </p>
-                        <Button type="submit" size="lg" className="min-h-11 w-fit" disabled={processing || challengeExpired || !data.token.trim()}>
-                            {processing ? 'Checking in…' : 'Submit secure check-in'}
+                        <Button type="submit" size="lg" className="min-h-11 w-fit" disabled={isSubmitting || !manualToken.trim()}>
+                            {isSubmitting ? 'Submitting…' : 'Submit secure check-in'}
                         </Button>
                     </form>
                 </Panel>

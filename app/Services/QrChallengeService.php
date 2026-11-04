@@ -101,7 +101,7 @@ class QrChallengeService
         ];
     }
 
-    /** Housekeeping; schedule daily. */
+    /** Housekeeping; scheduled daily in routes/console.php. */
     public function prune(): int
     {
         return QrChallenge::where('expires_at', '<', now()->subDay())->delete();

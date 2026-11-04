@@ -73,7 +73,7 @@ class AttendanceService
             }
 
             if ($attendance->check_in_at->diffInSeconds(now(), true) < (int) config('civicledger.qr.min_checkout_seconds')) {
-                throw ScanRejectedException::tooSoon();
+                throw ScanRejectedException::tooSoon($attendance->check_in_at);
             }
 
             $attendance->update(['check_out_at' => now(), 'status' => Attendance::STATUS_COMPLETED]);

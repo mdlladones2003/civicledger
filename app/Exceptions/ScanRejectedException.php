@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use Carbon\CarbonInterface;
 use RuntimeException;
 
 /** Understandable reasons for QR failures; copy follows the Design Brief §7 catalogue. */
@@ -12,6 +13,7 @@ class ScanRejectedException extends RuntimeException
         string $message,
         public readonly ?string $result = null,
         public readonly ?string $eventTitle = null,
+        public readonly ?CarbonInterface $checkedInAt = null,
     ) {
         parent::__construct($message);
     }
@@ -41,8 +43,8 @@ class ScanRejectedException extends RuntimeException
         return new self('duplicate', 'Your attendance for this session is already recorded.', 'already_checked_in', $eventTitle);
     }
 
-    public static function tooSoon(): self
+    public static function tooSoon(CarbonInterface $checkedInAt): self
     {
-        return new self('too_soon', 'You just checked in. Wait a moment before scanning to check out.');
+        return new self('too_soon', 'You just checked in. Wait a moment before scanning to check out.', checkedInAt: $checkedInAt);
     }
 }
