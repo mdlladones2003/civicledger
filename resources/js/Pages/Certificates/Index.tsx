@@ -1,7 +1,11 @@
+import { useEffect, useState } from 'react';
 import { Link } from '@inertiajs/react';
+import { Check, Copy } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Table as ShadcnTable,
@@ -20,6 +24,108 @@ import { Status, Panel, PageHeading, ActionForm, Table, Cell, Empty } from '@/co
 import { AppShell } from '@/components/app/AppShell';
 
 import type { Data } from '@/types/app';
+
+const COPIED_MESSAGE_MS = 2500;
+
+function CopyVerificationLink({ url, certificateNumber }: { url: string; certificateNumber: string }) {
+    const [copyResult, setCopyResult] = useState<'copied' | 'failed' | null>(null);
+    const isCopied = copyResult === 'copied';
+    const hasFailed = copyResult === 'failed';
+
+    useEffect(() => {
+        if (!isCopied) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => setCopyResult(null), COPIED_MESSAGE_MS);
+
+        return () => window.clearTimeout(timer);
+    }, [isCopied]);
+
+    async function copyLink() {
+        try {
+            // Browsers leave out the clipboard API on plain HTTP, so that case fails here as well.
+            await navigator.clipboard.writeText(url);
+            setCopyResult('copied');
+        } catch {
+            setCopyResult('failed');
+        }
+    }
+
+    return (
+        <div className="grid gap-2">
+            <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="min-h-11 w-full"
+                aria-label={isCopied ? undefined : `Copy verification link for ${certificateNumber}`}
+                onClick={copyLink}
+            >
+                {isCopied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                {isCopied ? 'Link copied' : 'Copy verification link'}
+            </Button>
+            <p role="status" className={hasFailed ? 'text-sm text-muted-foreground' : 'sr-only'}>
+                {isCopied && `Verification link for ${certificateNumber} copied.`}
+                {hasFailed && 'Couldn’t copy the link. Copy it from this box instead.'}
+            </p>
+            {hasFailed && (
+                <Input
+                    readOnly
+                    autoFocus
+                    value={url}
+                    aria-label={`Verification link for ${certificateNumber}`}
+                    className="h-11"
+                    onFocus={(event) => event.target.select()}
+                />
+            )}
+        </div>
+    );
+}
+
+function CertificateVerification({ certificate }: { certificate: Data }) {
+    const publicUrl = text(certificate.public_url);
+    const certificateNumber = text(certificate.certificate_number);
+    const openLink = (
+        <a
+            className="flex min-h-11 w-fit items-center font-semibold text-civic underline underline-offset-4"
+            href={publicUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open public verification for ${certificateNumber}`}
+        >
+            Open public verification
+        </a>
+    );
+
+    // A revoked or superseded certificate keeps its link, which reports that status, but is no longer offered for sharing.
+    if (certificate.status !== 'issued') {
+        return openLink;
+    }
+
+    return (
+        <div className="flex flex-wrap items-start gap-4">
+            <div className="mx-auto w-44 shrink-0 overflow-hidden rounded-lg bg-white">
+                <QRCodeSVG
+                    value={publicUrl}
+                    size={176}
+                    level="M"
+                    marginSize={4}
+                    bgColor="#FFFFFF"
+                    fgColor="#000000"
+                    title={`Verification QR code for certificate ${certificateNumber}`}
+                    role="img"
+                    className="h-auto w-full"
+                />
+            </div>
+            <div className="grid min-w-52 flex-1 gap-2">
+                <p className="text-sm leading-6 text-muted-foreground">Anyone with this code or link can check this certificate.</p>
+                <CopyVerificationLink url={publicUrl} certificateNumber={certificateNumber} />
+                {openLink}
+            </div>
+        </div>
+    );
+}
 
 function CertificateActionDialog({ certificate, action }: { certificate: Data; action: 'revoke' | 'supersede' }) {
     const number = text(certificate.certificate_number);
@@ -71,7 +177,7 @@ export default function Certificates({ props, signer, admin = false }: { props: 
             {signer && (
                 <Panel title="Eligible candidates">
                     {candidates.length === 0 ? <Empty>No eligible students are ready for a certificate.</Empty> : (
-                        <Table headers={['Student', 'Term', 'Approved hours', '']}>
+                        <Table headers={['Student', 'Term', 'Approved hours', 'Actions']}>
                             {candidates.map((candidate) => (
                                 <TableRow key={`${text(candidate.student_id)}-${text(candidate.term_id)}`}>
                                     <Cell>{text(candidate.student_name)}</Cell>
@@ -93,7 +199,7 @@ export default function Certificates({ props, signer, admin = false }: { props: 
                 {certificates.length === 0 ? <Empty>No certificates have been issued yet.</Empty> : (
                     <div className="grid gap-4 md:grid-cols-2">
                         {certificates.map((certificate) => (
-                            <article key={text(certificate.id)} className="grid gap-3 rounded-xl border border-border bg-card p-4">
+                            <article key={text(certificate.id)} className="grid content-start gap-3 rounded-xl border border-border bg-card p-4">
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                     <h2 className="font-semibold text-foreground">{text(certificate.certificate_number, 'Service certificate')}</h2>
                                     <Status value={certificate.status} />
@@ -101,12 +207,10 @@ export default function Certificates({ props, signer, admin = false }: { props: 
                                 <p className="text-sm text-muted-foreground">Supplementary record, not an official completion record unless adopted by the school.</p>
                                 {(signer || admin) && <p className="text-sm text-muted-foreground">{person(certificate.student)}</p>}
                                 <p className="text-sm text-muted-foreground">{text(object(certificate.term).code)} · {hours(certificate.approved_minutes)} approved</p>
-                                {Boolean(certificate.public_url) && (
-                                    <a className="font-semibold text-civic underline" href={text(certificate.public_url)} target="_blank" rel="noreferrer">Open public verification</a>
-                                )}
                                 {Boolean(certificate.proof) && (
                                     <p className="text-sm text-muted-foreground">Proof: <Status value={object(certificate.proof).proof_status} /> · Validity: <Status value={object(certificate.proof).validity_status} /></p>
                                 )}
+                                <CertificateVerification certificate={certificate} />
                                 {signer && Boolean(props.canRevoke) && certificate.status === 'issued' && (
                                     <div className="flex flex-wrap gap-2">
                                         <CertificateActionDialog certificate={certificate} action="supersede" />

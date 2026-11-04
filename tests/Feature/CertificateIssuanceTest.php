@@ -146,6 +146,49 @@ it('lists a student as a candidate only after their approved records are confirm
         ->assertInertia(fn (Assert $page) => $page->has('candidates', 0));
 });
 
+it('gives a signer the verification link of a certificate in their section', function () {
+    $certificate = Certificate::where('student_id', $this->certified->id)->firstOrFail();
+
+    $this->actingAs($this->signer)
+        ->get(route('certificates.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Certificates/Signer', false)
+            ->has('issued.data', 1)
+            ->where('issued.data.0.public_url', route('verify.show', $certificate->public_token)));
+});
+
+it('hides certificates and their verification links from a signer outside the section', function () {
+    $outsideSigner = User::factory()->create(['status' => 'active']);
+    $outsideSigner->roles()->attach(Role::where('code', 'signer')->firstOrFail());
+
+    $this->actingAs($outsideSigner)
+        ->get(route('certificates.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('issued.data', 0));
+});
+
+it('gives a student the verification link of their own certificate', function () {
+    $certificate = Certificate::where('student_id', $this->certified->id)->firstOrFail();
+
+    $this->actingAs($this->certified)
+        ->get(route('certificates.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Certificates/Mine', false)
+            ->has('certificates', 1)
+            ->where('certificates.0.public_url', route('verify.show', $certificate->public_token)));
+});
+
+it('hides the certificate of another student and its verification link', function () {
+    $this->actingAs($this->student)
+        ->get(route('certificates.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Certificates/Mine', false)
+            ->has('certificates', 0));
+});
+
 it('offers revoke and supersede actions only to signers holding the revoke permission', function () {
     $this->actingAs($this->signer)
         ->get(route('certificates.index'))

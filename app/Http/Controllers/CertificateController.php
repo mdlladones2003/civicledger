@@ -46,7 +46,9 @@ class CertificateController extends Controller
                     ->with(['student:id,first_name,middle_name,last_name', 'term:id,code', 'proof:id,certificate_id,proof_status,validity_status'])
                     ->latest('issued_at')
                     ->paginate(20)
-                    ->withQueryString(),
+                    ->withQueryString()
+                    ->through(fn (Certificate $certificate) => $certificate
+                        ->setAttribute('public_url', $certificate->publicUrl())),
             ]);
         }
 
