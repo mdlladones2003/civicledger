@@ -80,10 +80,17 @@ export default function PublicVerify({ props }: { props: Data }) {
                                 {Boolean(certificate.revoked_at) && (
                                     <><dt className="text-sm text-muted-foreground">Revoked</dt><dd className="text-sm">{date(certificate.revoked_at)}</dd></>
                                 )}
+                                {Boolean(certificate.replaced_by) && (
+                                    <><dt className="text-sm text-muted-foreground">Replaced by</dt><dd className="break-all text-sm">{text(certificate.replaced_by)}</dd></>
+                                )}
                             </dl>
                         </CardContent>
                     )}
                 </Card>
+
+                {Boolean(props.disclaimer) && (
+                    <p className="text-center text-sm leading-6 text-muted-foreground">{text(props.disclaimer)}</p>
+                )}
 
                 {Object.keys(evidence).length > 0 && (
                     <Card>

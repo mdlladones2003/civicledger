@@ -363,7 +363,7 @@ Each specification lists route, purpose, content, actions, states and errors. De
 4. Coordinator opens the approval queue (S11) and approves; proof shows Queued then Confirmed on the EVM testnet (S12).
 5. Signer issues a certificate (S13).
 6. Verifier scans the certificate QR and sees Verified (S16).
-7. Presenter changes an approved database value outside the app; reloading S16 shows Mismatch.
+7. Presenter changes the certificate's approved minutes in the database outside the app; reloading S16 shows Mismatch.
 8. Presenter revokes the certificate; S16 shows Revoked.
 
 Fallback path: if the live transaction is slow, switch to the preconfirmed fixture record and say so.

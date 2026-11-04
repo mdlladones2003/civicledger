@@ -98,6 +98,7 @@ export default function Certificates({ props, signer, admin = false }: { props: 
                                     <h2 className="font-semibold text-foreground">{text(certificate.certificate_number, 'Service certificate')}</h2>
                                     <Status value={certificate.status} />
                                 </div>
+                                <p className="text-sm text-muted-foreground">Supplementary record, not an official completion record unless adopted by the school.</p>
                                 {(signer || admin) && <p className="text-sm text-muted-foreground">{person(certificate.student)}</p>}
                                 <p className="text-sm text-muted-foreground">{text(object(certificate.term).code)} · {hours(certificate.approved_minutes)} approved</p>
                                 {Boolean(certificate.public_url) && (

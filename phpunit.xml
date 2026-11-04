@@ -23,6 +23,8 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
+        <env name="CIVICLEDGER_CHAIN_DRIVER" value="fake"/>
+        <env name="CIVICLEDGER_PROOF_SECRET" value="testing-only-proof-secret"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>

@@ -47,6 +47,7 @@ class PublicVerificationController extends Controller
                 'issued_at' => $certificate->issued_at->toDateString(),
                 'status' => $certificate->status,
                 'revoked_at' => $certificate->revoked_at?->toDateString(),
+                'replaced_by' => $certificate->replacement?->certificate_number,
             ],
             // Optional expandable technical evidence (Design Brief §4).
             'evidence' => $proof ? [
@@ -94,6 +95,7 @@ class PublicVerificationController extends Controller
                 'approved_hours' => round($certificate->approved_minutes / 60, 2),
                 'issued_at' => $certificate->issued_at->toDateString(),
                 'holder' => $this->mask($certificate->student->full_name),
+                'replaced_by' => $certificate->replacement?->certificate_number,
             ],
             'proof' => $proof ? [
                 'status' => $proof->proof_status,
@@ -111,7 +113,7 @@ class PublicVerificationController extends Controller
             return null;
         }
 
-        return Certificate::with(['student:id,first_name,middle_name,last_name', 'term:id,code', 'proof'])
+        return Certificate::with(['student:id,first_name,middle_name,last_name', 'term:id,code', 'proof', 'replacement:id,supersedes_certificate_id,certificate_number'])
             ->where('public_token', $token)
             ->first();
     }

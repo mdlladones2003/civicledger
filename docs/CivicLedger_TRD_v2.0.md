@@ -236,7 +236,7 @@ Response 200: {
   "result": "verified|pending|mismatch|not_found|unavailable|revoked|superseded",
   "validity": "current|revoked|superseded",
   "certificate": { "number": "CL-2026-000001", "term": "2026-1", "approved_hours": 3.05,
-                   "issued_at": "2026-10-25", "holder": "A*** R***" },
+                   "issued_at": "2026-10-25", "holder": "A*** R***", "replaced_by": "CL-2026-000002 or null" },
   "proof": { "status": "confirmed", "network": "Sepolia", "tx_hash": "0x...", "checked_at": "..." },
   "disclaimer": "Integrity checks show a record has not been altered since approval. They do not prove actual participation. This is a supplementary record, not an official completion record unless adopted by the school."
 }
@@ -471,7 +471,8 @@ A submitted transaction is never treated as confirmed.
 1. T-24h: deploy, migrate, seed; confirm signer account funded; confirm contract address.
 2. T-1h: dry run complete flow; confirm preconfirmed fixture present; test fallback RPC by switching env.
 3. During demo: use fixture if the live transaction is slow; narrate Pending honestly.
-4. Tamper step: use a prepared SQL snippet or admin-only dev tool against the demo database; reset script afterwards.
+4. Tamper step: edit `certificates.approved_minutes` with a prepared SQL snippet so the public page (S16) shows Mismatch, then restore it. Editing `service_records.approved_minutes` shows Mismatch only on the staff proof page (S12), because the certificate keeps its own snapshot of the minutes.
+5. Do not clear the application cache between seeding and the demo. `FakeChainClient` stores its records in the cache, so clearing it makes every confirmed proof read as Mismatch until the data is seeded again.
 
 ## 13. Technical quality gates
 

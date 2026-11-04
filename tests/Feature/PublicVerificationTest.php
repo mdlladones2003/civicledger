@@ -4,7 +4,9 @@ use App\Models\BlockchainProof;
 use App\Models\Certificate;
 use App\Models\Term;
 use App\Models\User;
+use Database\Seeders\CivicLedgerDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -121,4 +123,38 @@ it('reports a mismatch when a confirmed proof is missing from the chain', functi
     $response = $this->getJson(route('api.verify', $certificate->public_token));
 
     $response->assertOk()->assertJsonPath('result', 'mismatch');
+});
+
+it('verifies an untouched certificate whose proof matches the chain', function () {
+    $this->seed(CivicLedgerDemoSeeder::class);
+    $certificate = Certificate::firstOrFail();
+
+    $response = $this->getJson(route('api.verify', $certificate->public_token));
+
+    $response->assertOk()->assertJsonPath('result', 'verified');
+});
+
+it('reports a mismatch after a certificate value is edited directly in the database', function () {
+    $this->seed(CivicLedgerDemoSeeder::class);
+    $certificate = Certificate::firstOrFail();
+    DB::table('certificates')->where('id', $certificate->id)->update(['approved_minutes' => 999]);
+
+    $response = $this->getJson(route('api.verify', $certificate->public_token));
+
+    $response->assertOk()->assertJsonPath('result', 'mismatch');
+});
+
+it('shows staff a mismatch after approved minutes are edited directly in the database', function () {
+    $this->seed(CivicLedgerDemoSeeder::class);
+    $proof = BlockchainProof::whereNotNull('service_record_version_id')->firstOrFail();
+    DB::table('service_records')->where('id', $proof->serviceRecordVersion->service_record_id)->update(['approved_minutes' => 999]);
+
+    $response = $this->actingAs(User::where('email', 'coordinator@civicledger.test')->firstOrFail())
+        ->get(route('proofs.show', $proof));
+
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Proofs/Show', false)
+            ->where('verification', 'mismatch'));
 });

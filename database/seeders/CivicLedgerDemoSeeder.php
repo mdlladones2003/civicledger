@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Attendance;
+use App\Models\Certificate;
 use App\Models\Event;
 use App\Models\EventSession;
 use App\Models\Permission;
@@ -142,8 +143,13 @@ class CivicLedgerDemoSeeder extends Seeder
             }
         }
 
-        // Issuance needs a confirmed proof, which only the fake driver provides during seeding.
-        if ($approved && config('civicledger.proof.driver') === 'fake') {
+        // Seeding again must not try to issue a second active certificate.
+        $alreadyIssued = Certificate::where('student_id', $students[0]->id)
+            ->where('term_id', $term->id)
+            ->where('status', Certificate::ISSUED)
+            ->exists();
+
+        if ($approved && ! $alreadyIssued) {
             app(CertificateService::class)->issue($signer, $students[0], $term);
         }
 

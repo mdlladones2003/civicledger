@@ -183,6 +183,22 @@ it('replaces the active certificate and records the reason when superseding', fu
     $this->assertDatabaseHas('audit_logs', ['action' => 'certificate.superseded']);
 });
 
+it('points the public result of a superseded certificate to its replacement by number only', function () {
+    $original = Certificate::where('student_id', $this->certified->id)->firstOrFail();
+    $this->actingAs($this->signer)
+        ->post(route('certificates.supersede', $original), ['reason' => 'Corrected hours after coordinator review.']);
+    $replacement = Certificate::where('supersedes_certificate_id', $original->id)->firstOrFail();
+
+    $response = $this->getJson(route('api.verify', $original->public_token));
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('result', 'superseded')
+        ->assertJsonPath('validity', 'superseded')
+        ->assertJsonPath('certificate.replaced_by', $replacement->certificate_number);
+    expect($response->getContent())->not->toContain($replacement->public_token);
+});
+
 it('requires a reason of at least 10 characters to supersede', function () {
     $original = Certificate::where('student_id', $this->certified->id)->firstOrFail();
 
@@ -235,4 +251,10 @@ it('forbids superseding by a signer outside the section of the student', functio
 
     $response->assertForbidden();
     expect($original->refresh()->status)->toBe(Certificate::ISSUED);
+});
+
+it('keeps one demo certificate when the demo seeder runs again', function () {
+    $this->seed(CivicLedgerDemoSeeder::class);
+
+    $this->assertDatabaseCount('certificates', 1);
 });

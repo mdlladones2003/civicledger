@@ -47,6 +47,11 @@ class Certificate extends Model
         return $this->belongsTo(self::class, 'supersedes_certificate_id');
     }
 
+    public function replacement(): HasOne
+    {
+        return $this->hasOne(self::class, 'supersedes_certificate_id');
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(CertificateEvent::class);
