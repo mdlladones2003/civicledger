@@ -28,11 +28,5 @@ export default defineConfig({
             ignored: ['**/storage/framework/views/**'],
         },
         allowedHosts: ['.trycloudflare.com'],
-        // Explicitly tells Vite how the browser should contact it
-        hmr: {
-            host: 'telecharger-making-associates-crown.trycloudflare.com',
-            protocol: 'wss',
-            clientPort: 443
-        },
     },
 });
