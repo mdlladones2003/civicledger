@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Models\Section;
 use App\Models\User;
+use App\Models\UserSectionAssignment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +19,12 @@ class RegisteredUserController extends Controller
 {
     public function create(): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', [
+            'sections' => Section::query()
+                ->with(['program:id,code,name', 'term:id,code'])
+                ->orderBy('code')
+                ->get(['id', 'program_id', 'term_id', 'code']),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -28,6 +35,7 @@ class RegisteredUserController extends Controller
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(12)],
+            'section_id' => ['required', 'integer', 'exists:sections,id'],
         ]);
 
         $user = DB::transaction(function () use ($validated): User {
@@ -41,6 +49,10 @@ class RegisteredUserController extends Controller
 
             $studentRole = Role::firstOrCreate(['code' => 'student'], ['label' => 'Student']);
             $user->roles()->attach($studentRole);
+            $user->sectionAssignments()->create([
+                'section_id' => $validated['section_id'],
+                'scope_role' => UserSectionAssignment::STUDENT,
+            ]);
 
             return $user;
         });

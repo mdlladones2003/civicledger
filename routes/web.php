@@ -93,12 +93,12 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsurePasswordChanged::class
     Route::middleware(RequirePermission::class.':events.manage')->group(function () {
         Route::get('/coordinator/section-assignments', [StudentSectionAssignmentController::class, 'index'])
             ->name('coordinator.section-assignments.index');
-        Route::get('/coordinator/students/search', [StudentSectionAssignmentController::class, 'searchStudents'])
-            ->name('coordinator.students.search');
         Route::post('/coordinator/sections', [StudentSectionAssignmentController::class, 'storeSection'])
             ->name('coordinator.sections.store');
-        Route::post('/coordinator/section-assignments', [StudentSectionAssignmentController::class, 'store'])
-            ->name('coordinator.section-assignments.store');
+        Route::post('/coordinator/programs', [StudentSectionAssignmentController::class, 'storeProgram'])
+            ->name('coordinator.programs.store');
+        Route::post('/coordinator/terms', [StudentSectionAssignmentController::class, 'storeTerm'])
+            ->name('coordinator.terms.store');
 
         // Declared before /events/{event} so "create" is not treated as an id.
         Route::get('/events/create', [EventController::class, 'create'])->name('events.create');
@@ -112,6 +112,8 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsurePasswordChanged::class
         Route::post('/events/{event}/sessions', [EventSessionController::class, 'store'])->name('events.sessions.store');
         Route::post('/sessions/{session}/open', [EventSessionController::class, 'open'])->name('sessions.open');
         Route::post('/sessions/{session}/close', [EventSessionController::class, 'close'])->name('sessions.close');
+        Route::post('/sessions/{session}/qr/pause', [EventSessionController::class, 'pauseQr'])->name('sessions.qr.pause');
+        Route::post('/sessions/{session}/qr/resume', [EventSessionController::class, 'resumeQr'])->name('sessions.qr.resume');
 
         // Live QR + roster (S10)
         Route::get('/sessions/{session}/qr', [SessionQrController::class, 'show'])->name('sessions.qr');

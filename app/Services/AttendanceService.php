@@ -31,8 +31,9 @@ class AttendanceService
     public function scan(User $student, string $token): array
     {
         $session = $this->qr->verify($token);
+        $challengeMode = $this->qr->mode($token);
 
-        return DB::transaction(function () use ($student, $session) {
+        return DB::transaction(function () use ($student, $session, $challengeMode) {
             $registered = Registration::query()
                 ->where('event_id', $session->event_id)
                 ->where('student_id', $student->id)
@@ -48,6 +49,14 @@ class AttendanceService
                 ->where('student_id', $student->id)
                 ->lockForUpdate()
                 ->first();
+
+            if ($challengeMode === EventSession::QR_MODE_CHECK_IN && $attendance) {
+                throw ScanRejectedException::wrongChallengeMode();
+            }
+
+            if ($challengeMode === EventSession::QR_MODE_CHECK_OUT && ! $attendance) {
+                throw ScanRejectedException::checkoutWithoutCheckIn();
+            }
 
             if (! $attendance) {
                 try {
@@ -72,7 +81,7 @@ class AttendanceService
                 ];
             }
 
-            if ($attendance->check_in_at->diffInSeconds(now(), true) < (int) config('civicledger.qr.min_checkout_seconds')) {
+            if ($attendance->check_in_at->greaterThan(now()->subSeconds((int) config('civicledger.qr.min_checkout_seconds')))) {
                 throw ScanRejectedException::tooSoon();
             }
 
@@ -99,6 +108,14 @@ class AttendanceService
 
             if (Attendance::where('session_id', $session->id)->where('student_id', $student->id)->exists()) {
                 throw ValidationException::withMessages(['student_id' => 'Attendance already exists for this student. Use an adjustment instead.']);
+            }
+
+            if ($in->greaterThan(now())) {
+                throw ValidationException::withMessages(['check_in_at' => 'Check-in time cannot be in the future.']);
+            }
+
+            if ($out !== null && $out->lessThan($in)) {
+                throw ValidationException::withMessages(['check_out_at' => 'Check-out time cannot be before check-in time.']);
             }
 
             $attendance = Attendance::create([
@@ -134,6 +151,14 @@ class AttendanceService
         return DB::transaction(function () use ($actor, $attendance, $in, $out, $reason) {
             $attendance = Attendance::whereKey($attendance->id)->lockForUpdate()->firstOrFail();
             $old = $this->snapshot($attendance);
+
+            if ($in->greaterThan(now())) {
+                throw ValidationException::withMessages(['check_in_at' => 'Check-in time cannot be in the future.']);
+            }
+
+            if ($out !== null && $out->lessThan($in)) {
+                throw ValidationException::withMessages(['check_out_at' => 'Check-out time cannot be before check-in time.']);
+            }
 
             $attendance->update([
                 'check_in_at' => $in,

@@ -14,13 +14,15 @@ class SessionQrController extends Controller
 {
     public function show(EventSession $session)
     {
-        $session->load('event:id,title,status');
+        $session->load('event:id,title,status,ends_at');
         Gate::authorize('manage', $session->event);
+        $session->setAttribute('attendance_ended', $session->hasEnded($session->event));
 
         return Inertia::render('Sessions/LiveQr', [
             'session' => $session,
             'ttl' => (int) config('civicledger.qr.ttl_seconds'),
             'roster' => $this->roster($session),
+            'canManualAttend' => Gate::allows('manageAttendance', $session->event),
         ]);
     }
 

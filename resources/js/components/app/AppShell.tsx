@@ -1,7 +1,8 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Toast } from '@/components/ui/toast';
 import {
     Award,
     BarChart3,
@@ -29,6 +30,10 @@ import type { SharedProps } from '@/types/app';
 export function AppShell({ title, children }: { title: string; children: ReactNode }) {
     const page = usePage<SharedProps>();
     const { auth, errors, flash } = page.props;
+    const [successToast, setSuccessToast] = useState<string | null>(null);
+    const visibleErrors = Object.fromEntries(
+        Object.entries(errors ?? {}).filter(([field]) => !['token', 'payload'].includes(field)),
+    );
     const permissions = auth?.user?.permissions ?? {};
     const links = [
         { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, visible: true },
@@ -67,9 +72,31 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
         );
     });
 
+    useEffect(() => {
+        if (!flash?.success) {
+            setSuccessToast(null);
+
+            return;
+        }
+
+        setSuccessToast(flash.success);
+        const timeout = window.setTimeout(() => setSuccessToast(null), 5000);
+
+        return () => window.clearTimeout(timeout);
+    }, [flash?.success]);
+
     return (
         <div className="flex min-h-screen flex-col bg-background text-foreground">
             <Head title={title} />
+            {successToast && (
+                <Toast
+                    title="Success"
+                    variant="success"
+                    className="fixed right-4 top-20 z-50 w-[min(24rem,calc(100vw-2rem))] shadow-lg"
+                >
+                    {successToast}
+                </Toast>
+            )}
             <header className="sticky top-0 z-20 border-b border-border bg-background">
                 <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex min-h-16 min-w-0 items-center gap-3">
@@ -121,18 +148,12 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
                 </aside>
                 <div className="flex min-w-0 flex-1 flex-col">
                     <main className="mx-auto grid w-full flex-1 content-start gap-6 p-4 pt-6 sm:p-6 lg:px-8 lg:pt-8">
-                        {flash?.success && (
-                            <Alert variant="success" role="status" className="mb-6">
-                                <AlertTitle>Success</AlertTitle>
-                                <AlertDescription>{flash.success}</AlertDescription>
-                            </Alert>
-                        )}
-                        {Object.keys(errors ?? {}).length > 0 && (
+                        {Object.keys(visibleErrors).length > 0 && (
                             <Alert variant="destructive" className="mb-6">
                                 <AlertTitle>Please check the following</AlertTitle>
                                 <AlertDescription>
                                     <ul className="list-inside list-disc">
-                                        {Object.values(errors ?? {}).map((message, index) => <li key={`${index}-${message}`}>{message}</li>)}
+                                        {Object.values(visibleErrors).map((message, index) => <li key={`${index}-${message}`}>{message}</li>)}
                                     </ul>
                                 </AlertDescription>
                             </Alert>

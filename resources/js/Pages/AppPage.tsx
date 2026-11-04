@@ -35,7 +35,7 @@ export default function AppPage() {
         case 'Auth/Login':
             return <Login />;
         case 'Auth/Register':
-            return <Register />;
+            return <Register props={props} />;
         case 'Auth/ChangePassword':
             return <ChangePassword />;
         case 'Account/Profile':
@@ -71,11 +71,13 @@ export default function AppPage() {
         case 'Proofs/Show':
             return <Proofs props={props} detail />;
         case 'Certificates/Mine':
-            return <Certificates props={props} signer={false} />;
+            return <Certificates props={props} signer={false} coordinator={props.view_mode === 'coordinator'} />;
         case 'Certificates/Signer':
             return <Certificates props={props} signer />;
         case 'Certificates/Index':
-            return <Certificates props={props} signer={false} admin />;
+            return props.view_mode === 'coordinator'
+                ? <Certificates props={props} signer={false} coordinator />
+                : <Certificates props={props} signer={false} admin />;
         case 'Reports/Index':
             return <Reports props={props} />;
         case 'Admin/Users':

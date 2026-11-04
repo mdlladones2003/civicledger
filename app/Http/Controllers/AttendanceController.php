@@ -75,6 +75,8 @@ class AttendanceController extends Controller
             'not_registered' => ['not_registered', 403, false],
             'session_closed' => ['session_closed', 409, true],
             'too_soon' => ['invalid_state', 409, true],
+            'wrong_challenge_mode' => ['invalid_state', 409, false],
+            'checkout_without_check_in' => ['invalid_state', 409, false],
             default => ['invalid_state', 409, false],
         };
 
@@ -113,8 +115,8 @@ class AttendanceController extends Controller
             $request->user(),
             $session,
             User::findOrFail($data['student_id']),
-            Carbon::parse($data['check_in_at'])->utc(),
-            isset($data['check_out_at']) ? Carbon::parse($data['check_out_at'])->utc() : null,
+            $this->parseAttendanceTimestamp($data['check_in_at']),
+            isset($data['check_out_at']) ? $this->parseAttendanceTimestamp($data['check_out_at']) : null,
             $data['reason'],
         );
 
@@ -136,11 +138,20 @@ class AttendanceController extends Controller
         $this->attendance->adjust(
             $request->user(),
             $attendance,
-            Carbon::parse($data['check_in_at'])->utc(),
-            isset($data['check_out_at']) ? Carbon::parse($data['check_out_at'])->utc() : null,
+            $this->parseAttendanceTimestamp($data['check_in_at']),
+            isset($data['check_out_at']) ? $this->parseAttendanceTimestamp($data['check_out_at']) : null,
             $data['reason'],
         );
 
         return back()->with('success', 'Attendance corrected; any approved claim is back in review.');
+    }
+
+    private function parseAttendanceTimestamp(string $value): Carbon
+    {
+        $timezone = preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/i', $value)
+            ? null
+            : config('civicledger.timezone');
+
+        return Carbon::parse($value, $timezone)->utc();
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\IssueCertificateRequest;
 use App\Models\Certificate;
+use App\Models\Section;
 use App\Models\Term;
 use App\Models\User;
 use App\Models\UserSectionAssignment;
@@ -46,6 +47,30 @@ class CertificateController extends Controller
                     ->latest('issued_at')
                     ->paginate(20)
                     ->withQueryString(),
+            ]);
+        }
+
+        if ($user->hasPermission('events.manage') || $user->hasRole('coordinator')) {
+            $sectionIds = $user->assignedSectionIds(UserSectionAssignment::COORDINATOR);
+            $termIds = Section::query()
+                ->whereIn('id', $sectionIds)
+                ->pluck('term_id');
+            $studentsInScope = UserSectionAssignment::query()
+                ->whereIn('section_id', $sectionIds)
+                ->where('scope_role', UserSectionAssignment::STUDENT)
+                ->select('user_id');
+
+            return Inertia::render('Certificates/Index', [
+                'view_mode' => 'coordinator',
+                'certificates' => Certificate::query()
+                    ->whereIn('student_id', $studentsInScope)
+                    ->whereIn('term_id', $termIds)
+                    ->with(['student:id,first_name,middle_name,last_name', 'term:id,code', 'proof:id,certificate_id,proof_status,validity_status'])
+                    ->latest('issued_at')
+                    ->paginate(20)
+                    ->withQueryString()
+                    ->through(fn (Certificate $certificate) => $certificate
+                        ->setAttribute('public_url', $certificate->publicUrl())),
             ]);
         }
 

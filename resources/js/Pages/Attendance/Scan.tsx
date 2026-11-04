@@ -23,8 +23,8 @@ type WindowWithBarcodeDetector = Window & {
 };
 
 export default function AttendanceScan() {
-    const { errors, flash } = usePage<SharedProps>().props;
-    const { data, setData, post, processing, errors: formErrors, clearErrors } = useForm({ token: '' });
+    const { flash } = usePage<SharedProps>().props;
+    const { data, setData, post, processing, clearErrors } = useForm({ token: '' });
     const [cameraActive, setCameraActive] = useState(false);
     const [cameraError, setCameraError] = useState('');
     const [challengeError, setChallengeError] = useState('');
@@ -213,7 +213,16 @@ export default function AttendanceScan() {
     function submitToken(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         clearErrors();
-        post('/attendance/scan', { preserveScroll: true });
+        post('/attendance/scan', {
+            preserveScroll: true,
+            onError: (submissionErrors) => {
+                const message = submissionErrors.token ?? submissionErrors.payload;
+
+                if (typeof message === 'string') {
+                    setChallengeError(message);
+                }
+            },
+        });
     }
 
     function updateToken(token: string) {
@@ -223,7 +232,6 @@ export default function AttendanceScan() {
         setChallengeError('');
     }
 
-    const tokenError = formErrors.token ?? errors?.token;
     const challengeExpired = remainingSeconds === 0;
     const progress = remainingSeconds !== null && challengeDuration
         ? Math.max(0, (remainingSeconds / challengeDuration) * 100)
@@ -234,8 +242,8 @@ export default function AttendanceScan() {
             <div className="mx-auto grid w-full max-w-xl gap-6">
                 <PageHeading
                     eyebrow="Attendance"
-                    title="Check in to service"
-                    description="Scan the current QR challenge with your camera, or enter its token manually."
+                    title="Check in or check out"
+                    description="Scan the current QR challenge when you arrive to check in. Scan the latest code again when you leave to check out."
                 />
                 {flash?.scan && (
                     <Alert variant="success" role="status">
@@ -243,12 +251,6 @@ export default function AttendanceScan() {
                         <AlertDescription>
                             {text(flash.scan.action)} · {date(flash.scan.at, { dateStyle: 'medium', timeStyle: 'short' })}
                         </AlertDescription>
-                    </Alert>
-                )}
-                {(tokenError || flash?.scan_reason) && (
-                    <Alert variant="destructive">
-                        <AlertTitle>Check-in could not be completed</AlertTitle>
-                        <AlertDescription>{tokenError ?? flash?.scan_reason}</AlertDescription>
                     </Alert>
                 )}
                 <Panel title="Scan QR challenge">
@@ -279,7 +281,6 @@ export default function AttendanceScan() {
                             )}
                         </div>
                         {cameraError && <p className="text-sm text-destructive" role="alert">{cameraError}</p>}
-                        {challengeError && <p className="text-sm text-destructive" role="alert">{challengeError}</p>}
                         {remainingSeconds !== null && (
                             <div className="grid gap-2">
                                 <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
@@ -302,6 +303,11 @@ export default function AttendanceScan() {
                                 </div>
                             </div>
                         )}
+                        {challengeError && (
+                            <p className="text-sm text-destructive" role="alert">
+                                {challengeError}
+                            </p>
+                        )}
                     </div>
                 </Panel>
                 <Panel title="Enter token manually">
@@ -320,10 +326,10 @@ export default function AttendanceScan() {
                             />
                         </Label>
                         <p id="scan-help" className="text-xs leading-5 text-muted-foreground">
-                            A scanned token's remaining time is shown above. Expired tokens must be rescanned from the current code.
+                            A scanned token's remaining time is shown above. Use the current live code for each scan; expired tokens must be rescanned from the coordinator's screen.
                         </p>
                         <Button type="submit" size="lg" className="min-h-11 w-fit" disabled={processing || challengeExpired || !data.token.trim()}>
-                            {processing ? 'Checking in…' : 'Submit secure check-in'}
+                            {processing ? 'Recording attendance…' : 'Submit attendance scan'}
                         </Button>
                     </form>
                 </Panel>

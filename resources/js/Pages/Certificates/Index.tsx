@@ -17,7 +17,7 @@ import { AppShell } from '@/components/app/AppShell';
 
 import type { Data } from '@/types/app';
 
-export default function Certificates({ props, signer, admin = false }: { props: Data; signer: boolean; admin?: boolean }) {
+export default function Certificates({ props, signer, admin = false, coordinator = false }: { props: Data; signer: boolean; admin?: boolean; coordinator?: boolean }) {
     const certificatePage = object(signer ? props.issued : props.certificates);
     const certificates = rows(signer ? props.issued : props.certificates);
     const candidates = rows(props.candidates);
@@ -28,7 +28,7 @@ export default function Certificates({ props, signer, admin = false }: { props: 
 
     return (
         <AppShell title="Certificates">
-            <PageHeading eyebrow="Service recognition" title={admin ? 'All certificates' : signer ? 'Certificate issuance' : 'My certificates'} description="Certificate validity and integrity proof are reported as separate statuses." />
+            <PageHeading eyebrow="Service recognition" title={admin ? 'All certificates' : signer ? 'Certificate issuance' : 'Certificates'} description="Certificate validity and integrity proof are reported as separate statuses." />
             {signer && (
                 <Panel title="Eligible candidates">
                     {candidates.length === 0 ? <Empty>No eligible students are ready for a certificate.</Empty> : (
@@ -50,7 +50,7 @@ export default function Certificates({ props, signer, admin = false }: { props: 
                     )}
                 </Panel>
             )}
-            <Panel title={admin ? 'Issued certificates' : signer ? 'Issued certificates' : 'Your certificates'}>
+            <Panel title={admin || signer || coordinator ? 'Issued certificates' : 'Your certificates'}>
                 {certificates.length === 0 ? <Empty>No certificates have been issued yet.</Empty> : (
                     <div className="grid gap-4 md:grid-cols-2">
                         {certificates.map((certificate) => (
@@ -59,7 +59,7 @@ export default function Certificates({ props, signer, admin = false }: { props: 
                                     <h2 className="font-semibold text-foreground">{text(certificate.certificate_number, 'Service certificate')}</h2>
                                     <Status value={certificate.status} />
                                 </div>
-                                {(signer || admin) && <p className="text-sm text-muted-foreground">{person(certificate.student)}</p>}
+                                {(signer || admin || coordinator) && <p className="text-sm text-muted-foreground">{person(certificate.student)}</p>}
                                 <p className="text-sm text-muted-foreground">{text(object(certificate.term).code)} · {hours(certificate.approved_minutes)} approved</p>
                                 {Boolean(certificate.public_url) && (
                                     <a className="font-semibold text-civic underline" href={text(certificate.public_url)} target="_blank" rel="noreferrer">Open public verification</a>
@@ -71,7 +71,7 @@ export default function Certificates({ props, signer, admin = false }: { props: 
                         ))}
                     </div>
                 )}
-                {(admin || signer) && (previousPage || nextPage) && (
+                {(admin || signer || coordinator) && (previousPage || nextPage) && (
                     <nav className="mt-6 flex items-center justify-between gap-4 border-t border-border pt-4" aria-label="Certificate pages">
                         {previousPage ? (
                             <Link className="font-semibold text-civic underline underline-offset-4" href={previousPage}>Previous</Link>

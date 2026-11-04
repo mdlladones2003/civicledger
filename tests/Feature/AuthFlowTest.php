@@ -1,6 +1,10 @@
 <?php
 
+use App\Models\Program;
+use App\Models\Section;
+use App\Models\Term;
 use App\Models\User;
+use App\Models\UserSectionAssignment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -8,13 +12,31 @@ use Inertia\Testing\AssertableInertia as Assert;
 uses(RefreshDatabase::class);
 
 it('renders the login and registration pages', function () {
+    $program = Program::create(['code' => 'NSTP', 'name' => 'NSTP']);
+    $term = Term::create([
+        'code' => '2026-T1',
+        'starts_at' => '2026-08-01',
+        'ends_at' => '2026-12-20',
+    ]);
+    $section = Section::create([
+        'program_id' => $program->id,
+        'term_id' => $term->id,
+        'code' => 'CWTS-A',
+    ]);
+
     $this->get('/login')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('Auth/Login', false));
 
     $this->get('/register')
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('Auth/Register', false));
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Auth/Register')
+            ->has('sections', 1)
+            ->where('sections.0.id', $section->id)
+            ->where('sections.0.code', 'CWTS-A')
+            ->where('sections.0.program.code', 'NSTP')
+            ->where('sections.0.term.code', '2026-T1'));
 });
 
 it('authenticates an active user and logs them out', function () {
@@ -59,6 +81,18 @@ it('does not authenticate suspended users', function () {
 });
 
 it('registers a student account and ignores submitted role and status fields', function () {
+    $program = Program::create(['code' => 'NSTP', 'name' => 'NSTP']);
+    $term = Term::create([
+        'code' => '2026-T1',
+        'starts_at' => '2026-08-01',
+        'ends_at' => '2026-12-20',
+    ]);
+    $section = Section::create([
+        'program_id' => $program->id,
+        'term_id' => $term->id,
+        'code' => 'CWTS-A',
+    ]);
+
     $this->post('/register', [
         'first_name' => 'Jordan',
         'middle_name' => '',
@@ -66,6 +100,7 @@ it('registers a student account and ignores submitted role and status fields', f
         'email' => 'jordan@example.test',
         'password' => 'strong-password-123',
         'password_confirmation' => 'strong-password-123',
+        'section_id' => $section->id,
         'status' => 'suspended',
         'roles' => ['admin'],
         'role' => 'coordinator',
@@ -81,6 +116,38 @@ it('registers a student account and ignores submitted role and status fields', f
     ]);
     expect($user->roles()->pluck('code')->all())->toBe(['student']);
     $this->assertDatabaseHas('roles', ['code' => 'student', 'label' => 'Student']);
+    $this->assertDatabaseHas('user_section_assignments', [
+        'user_id' => $user->id,
+        'section_id' => $section->id,
+        'scope_role' => UserSectionAssignment::STUDENT,
+    ]);
+});
+
+it('requires a valid section when a student registers', function () {
+    $this->post('/register', [
+        'first_name' => 'Jordan',
+        'last_name' => 'Lee',
+        'email' => 'jordan@example.test',
+        'password' => 'strong-password-123',
+        'password_confirmation' => 'strong-password-123',
+    ])->assertSessionHasErrors('section_id');
+
+    $this->assertGuest();
+    $this->assertDatabaseMissing('users', ['email' => 'jordan@example.test']);
+});
+
+it('rejects a section id that does not exist during student registration', function () {
+    $this->post('/register', [
+        'first_name' => 'Jordan',
+        'last_name' => 'Lee',
+        'email' => 'jordan@example.test',
+        'password' => 'strong-password-123',
+        'password_confirmation' => 'strong-password-123',
+        'section_id' => 9999,
+    ])->assertSessionHasErrors('section_id');
+
+    $this->assertGuest();
+    $this->assertDatabaseMissing('users', ['email' => 'jordan@example.test']);
 });
 
 it('rejects registration when the email is already used', function () {
