@@ -22,10 +22,10 @@ return [
     'proof' => [
         // Secret used to derive per-record commitment keys. Keep OUTSIDE the database. Never APP_KEY.
         'secret' => env('CIVICLEDGER_PROOF_SECRET'),
-        'driver' => env('CIVICLEDGER_CHAIN_DRIVER', 'fake'), // fake | evm
-        'chain_id' => (int) env('CIVICLEDGER_CHAIN_ID', 11155111), // pin at kickoff (Sepolia proposed)
+        'driver' => env('CIVICLEDGER_CHAIN_DRIVER', 'evm'), // Changed default from 'fake' to 'evm'
+        'chain_id' => (int) env('CIVICLEDGER_CHAIN_ID', 11155111), // Sepolia chain ID
         'network_name' => env('CIVICLEDGER_CHAIN_NAME', 'Sepolia'),
-        'contract_address' => env('CIVICLEDGER_CONTRACT_ADDRESS', '0x0000000000000000000000000000000000000000'),
+        'contract_address' => env('CIVICLEDGER_CONTRACT_ADDRESS'), // Null default forces explicit setting in .env
         'confirmations' => (int) env('CIVICLEDGER_CONFIRMATIONS', 3),
         'rpc_url' => env('CIVICLEDGER_RPC_URL'),
         'rpc_fallback_url' => env('CIVICLEDGER_RPC_FALLBACK_URL'),
