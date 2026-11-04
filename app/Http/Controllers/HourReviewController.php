@@ -46,6 +46,7 @@ class HourReviewController extends Controller
             'record' => $serviceRecord,
             'derived_minutes' => $serviceRecord->attendance->durationMinutes(),
             'canReview' => Gate::allows('review', $serviceRecord),
+            'canCorrect' => Gate::allows('manageAttendance', $serviceRecord->attendance->session->event),
         ]);
     }
 

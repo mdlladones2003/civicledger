@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 import { object, rows, text } from '@/lib/app';
 
-import { Panel, PageHeading, csrfToken, Field } from '@/components/app/Primitives';
+import { Panel, PageHeading, csrfToken, Field, NativeSelect } from '@/components/app/Primitives';
 
 import { AppShell } from '@/components/app/AppShell';
 
@@ -34,7 +34,15 @@ export default function EventEditor({ props }: { props: Data }) {
                     <input type="hidden" name="program_id" value={text(event.program_id ?? object(sections[0]?.program).id, '')} />
                     <div className="md:col-span-2"><Field label="Event title" name="title" value={event.title} required /></div>
                     <Field label="Venue" name="venue" value={event.venue} required />
-                    <Field label="Service component" name="component" value={event.component} required />
+                    <Label className="grid gap-1.5 text-sm font-medium text-foreground">
+                        <span>Service component</span>
+                        <NativeSelect name="component" required defaultValue={text(event.component, '')}>
+                            <option value="" disabled>Select a component</option>
+                            <option value="CWTS">CWTS</option>
+                            <option value="LTS">LTS</option>
+                            <option value="ROTC">ROTC</option>
+                        </NativeSelect>
+                    </Label>
                     <Field label="Starts at" name="starts_at" type="datetime-local" value={event.starts_at} required />
                     <Field label="Ends at" name="ends_at" type="datetime-local" value={event.ends_at} required />
                     <Label className="grid gap-1.5 text-sm font-medium text-foreground md:col-span-2">

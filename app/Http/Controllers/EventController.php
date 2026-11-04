@@ -86,7 +86,7 @@ class EventController extends Controller
         $user = $request->user();
         $manages = Gate::allows('manage', $event);
 
-        $event->load(['section:id,code', 'program:id,code,name', 'sessions']);
+        $event->load(['section:id,code', 'program:id,code,name', 'sessions' => fn ($q) => $q->orderBy('starts_at')]);
 
         return Inertia::render('Events/Show', [
             'event' => $event,

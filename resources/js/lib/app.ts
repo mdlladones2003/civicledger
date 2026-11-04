@@ -18,6 +18,13 @@ export function dateTimeLocal(value: unknown): string | undefined {
     return new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
+/** Converts a datetime-local value (browser time) to an unambiguous UTC timestamp for the server. */
+export function isoFromLocal(value: string): string | null {
+    const parsed = new Date(value);
+
+    return value === '' || Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
 export function rows(value: unknown): Data[] {
     const data = Array.isArray(value) ? value : object(value).data;
 

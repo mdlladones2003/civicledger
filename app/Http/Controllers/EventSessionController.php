@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\EventSession;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 
 class EventSessionController extends Controller
@@ -21,7 +22,11 @@ class EventSessionController extends Controller
             'ends_at' => ['required', 'date', 'after:starts_at'],
         ]);
 
-        $session = $event->sessions()->create($data + ['status' => EventSession::STATUS_SCHEDULED]);
+        $session = $event->sessions()->create([
+            'starts_at' => Carbon::parse($data['starts_at'])->utc(),
+            'ends_at' => Carbon::parse($data['ends_at'])->utc(),
+            'status' => EventSession::STATUS_SCHEDULED,
+        ]);
         $this->audit->log($request->user(), 'session.created', $session, null, $session->only(['starts_at', 'ends_at']));
 
         return back()->with('success', 'Session added.');

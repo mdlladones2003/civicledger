@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Link } from '@inertiajs/react';
 import { AlertCircle, Check, Circle, Clock3, FileQuestion, RefreshCw, Send, ShieldCheck, ShieldX, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 
-import { dateTimeLocal, text, statusLabel, statusClass, statusIconClass } from '@/lib/app';
+import { dateTimeLocal, isoFromLocal, text, statusLabel, statusClass, statusIconClass } from '@/lib/app';
 
 export function Status({ value }: { value: unknown }) {
     const status = text(value).toLowerCase().replaceAll('_', ' ').replaceAll('-', ' ');
@@ -135,17 +135,71 @@ export function Field({ label, name, type = 'text', value, required = false }: {
     value?: unknown;
     required?: boolean;
 }) {
+    const [localDateTime, setLocalDateTime] = useState(() => dateTimeLocal(value) ?? '');
+
+    if (type === 'datetime-local') {
+        return (
+            <Label className="grid gap-1.5 text-sm font-medium text-foreground">
+                <span>{label}</span>
+                <input type="hidden" name={name} value={isoFromLocal(localDateTime) ?? ''} />
+                <Input
+                    type={type}
+                    value={localDateTime}
+                    onChange={(event) => setLocalDateTime(event.target.value)}
+                    required={required}
+                    className="h-10 rounded-lg px-3 text-sm font-normal"
+                />
+            </Label>
+        );
+    }
+
     return (
         <Label className="grid gap-1.5 text-sm font-medium text-foreground">
             <span>{label}</span>
             <Input
                 name={name}
                 type={type}
-                defaultValue={type === 'datetime-local' ? dateTimeLocal(value) : typeof value === 'string' ? value : undefined}
+                defaultValue={typeof value === 'string' ? value : undefined}
                 required={required}
                 className="h-10 rounded-lg px-3 text-sm font-normal"
             />
         </Label>
+    );
+}
+
+export function NativeSelect(props: ComponentProps<'select'>) {
+    return (
+        <select
+            {...props}
+            className="h-10 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-sm text-foreground transition-colors duration-150 ease-cl-out outline-none *:bg-card focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/30 dark:bg-input/30 dark:aria-invalid:border-destructive/50"
+        />
+    );
+}
+
+/** Previous/next links for a Laravel paginator. Pass `scrollTargetId` to land on a list that sits below other content. */
+export function PageNav({ page, label, scrollTargetId }: { page: Record<string, unknown>; label: string; scrollTargetId?: string }) {
+    const previousPage = typeof page.prev_page_url === 'string' ? page.prev_page_url : null;
+    const nextPage = typeof page.next_page_url === 'string' ? page.next_page_url : null;
+    const linkProps = {
+        className: '-mx-2 flex min-h-11 items-center rounded-lg px-2 font-semibold text-civic underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        preserveScroll: Boolean(scrollTargetId),
+        onSuccess: () => {
+            if (scrollTargetId) {
+                document.getElementById(scrollTargetId)?.scrollIntoView();
+            }
+        },
+    };
+
+    if (!previousPage && !nextPage) {
+        return null;
+    }
+
+    return (
+        <nav className="mt-6 flex items-center justify-between gap-4 border-t border-border pt-4" aria-label={label}>
+            {previousPage ? <Link {...linkProps} href={previousPage}>Previous</Link> : <span className="text-sm text-muted-foreground">Previous</span>}
+            <span className="text-sm text-muted-foreground">Page {text(page.current_page, '1')} of {text(page.last_page, '1')}</span>
+            {nextPage ? <Link {...linkProps} href={nextPage}>Next</Link> : <span className="text-sm text-muted-foreground">Next</span>}
+        </nav>
     );
 }
 

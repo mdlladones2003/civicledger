@@ -17,6 +17,7 @@ import Proofs from '@/Pages/Proofs/Index';
 import Certificates from '@/Pages/Certificates/Index';
 import Reports from '@/Pages/Reports/Index';
 import AdminUsers from '@/Pages/Admin/Users';
+import AdminUserDetail from '@/Pages/Admin/UserDetail';
 import Audit from '@/Pages/Admin/Audit';
 import LiveRoster from '@/Pages/Sessions/LiveQr';
 import PublicVerify from '@/Pages/Public/Verify';
@@ -79,6 +80,8 @@ export default function AppPage() {
             return <Reports props={props} />;
         case 'Admin/Users':
             return <AdminUsers props={props} />;
+        case 'Admin/UserDetail':
+            return <AdminUserDetail props={props} />;
         case 'Admin/Audit':
             return <Audit props={props} />;
         case 'Sessions/LiveQr':

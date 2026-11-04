@@ -154,6 +154,7 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsurePasswordChanged::class
         Route::middleware(RequirePermission::class.':users.manage')->group(function () {
             Route::get('/users', [UserController::class, 'index'])->name('users.index');
             Route::post('/users', [UserController::class, 'store'])->name('users.store');
+            Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
             Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
             Route::put('/users/{user}/roles', [UserRoleController::class, 'update'])->name('users.roles');
             Route::post('/users/{user}/assignments', [SectionAssignmentController::class, 'store'])->name('users.assignments.store');
